@@ -32,7 +32,10 @@
 %% @end
 %%--------------------------------------------------------------------
 start_link(Channel, Pid) ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [Channel, Pid], []).
+    Name = atom_to_list(?MODULE) ++ "_" ++ atom_to_list(Channel) ++ "_"
+           ++ pid_to_list(Pid),
+    gen_server:start_link({local, list_to_atom(Name)},
+                          ?MODULE, [Channel, Pid], []).
 
 %%%===================================================================
 %%% gen_server callbacks

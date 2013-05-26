@@ -33,9 +33,13 @@ start_vnode(I) ->
 init([Partition]) ->
     {ok, #state{partition=Partition}}.
 
-%% Sample command: respond to a ping
-handle_command(ping, _Sender, State) ->
-    {reply, {pong, State#state.partition}, State};
+%% @doc Respond to a subscription; launch a child process,
+%%      and register it with gproc under a given channel name.
+handle_command({subscribe, Channel, Pid}, _Sender, State) ->
+    lager:warning("Received subscribe for ~p and ~p.\n",
+                  [Channel, Pid]),
+    riak_pubsub_subscription_sup:start_child(Channel, Pid),
+    {reply, ok, State};
 handle_command(Message, _Sender, State) ->
     ?PRINT({unhandled_command, Message}),
     {noreply, State}.

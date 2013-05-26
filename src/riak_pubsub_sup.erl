@@ -26,8 +26,19 @@ start_link() ->
 
 init(_Args) ->
     VMaster = {riak_pubsub_vnode_master,
-                 {riak_core_vnode_master, start_link,
-                  [riak_pubsub_vnode]},
-                 permanent, 5000, worker, [riak_core_vnode_master]},
+               {riak_core_vnode_master, start_link, [riak_pubsub_vnode]},
+                permanent, 5000, worker, [riak_core_vnode_master]},
 
-    {ok, {{one_for_one, 5, 10}, [VMaster]}}.
+    Publish = {riak_pubsub_publish_vnode_master,
+               {riak_core_vnode_master, start_link, [riak_pubsub_publish_vnode]},
+                permanent, 5000, worker, [riak_core_vnode_master]},
+
+    Subscribe = {riak_pubsub_subscribe_vnode_master,
+                 {riak_core_vnode_master, start_link, [riak_pubsub_subscribe_vnode]},
+                  permanent, 5000, worker, [riak_core_vnode_master]},
+
+    SubscriptionSup = {riak_pubsub_subscription_sup,
+                       {riak_pubsub_subscription_sup, start_link, []},
+                        permanent, infinity, supervisor, [riak_pubsub_subscription_sup]},
+
+    {ok, {{one_for_one, 5, 10}, [VMaster, Publish, Subscribe, SubscriptionSup]}}.

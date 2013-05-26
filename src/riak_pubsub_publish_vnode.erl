@@ -33,9 +33,13 @@ start_vnode(I) ->
 init([Partition]) ->
     {ok, #state{partition=Partition}}.
 
-%% Sample command: respond to a ping
-handle_command(ping, _Sender, State) ->
-    {reply, {pong, State#state.partition}, State};
+%% @doc When receiving a message, find all globally registered listeners
+%%      for the message and perform the relay.
+handle_command({publish, Channel, Message}, _Sender, State) ->
+    lager:warning("Received publish for ~p and ~p.\n",
+                  [Channel, Message]),
+    gproc:send({p, l, {?MODULE, Channel}}, {message, Message}),
+    {reply, ok, State};
 handle_command(Message, _Sender, State) ->
     ?PRINT({unhandled_command, Message}),
     {noreply, State}.

@@ -36,9 +36,19 @@ init([Partition]) ->
 %% @doc When receiving a message, find all globally registered listeners
 %%      for the message and perform the relay.
 handle_command({publish, Channel, Message}, _Sender, State) ->
-    lager:warning("Received publish for ~p and ~p.\n",
-                  [Channel, Message]),
-    gproc:send({p, l, {?MODULE, Channel}}, {message, Message}),
+    lager:warning("Received publish for ~p and ~p.\n", [Channel, Message]),
+
+    try
+        gproc:send({p, l, {riak_pubsub_subscription, Channel}}, {message, Message}),
+
+        lager:warning("Relayed message to channel ~p.\n", [Channel])
+    catch
+        _:_ ->
+            lager:warning("Failed relay for channel ~p.\n", [Channel]),
+
+            ok
+    end,
+
     {reply, ok, State};
 handle_command(Message, _Sender, State) ->
     ?PRINT({unhandled_command, Message}),

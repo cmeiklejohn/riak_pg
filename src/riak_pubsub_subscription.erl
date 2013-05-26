@@ -56,9 +56,15 @@ init([Channel, Pid]) ->
     %% Tag this process with a local property through gproc with a
     %% particular channel name.
     try
-        gproc:reg({p, l, {?MODULE, Channel}})
+        gproc:reg({p, l, {riak_pubsub_subscription, Channel}}),
+
+        lager:warning("Registered ~p to send to ~p on channel ~p.\n",
+                      [self(), Pid, Channel])
     catch
         _:_ ->
+            lager:warning("Failed registration ~p to send to ~p on channel ~p.\n",
+                          [self(), Pid, Channel]),
+
             {stop, registration_failed}
     end,
 
@@ -105,13 +111,14 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_info({message, Message}=Info, #state{channel=Channel, pid=Pid}=State) ->
+handle_info({message, Message}, #state{channel=Channel, pid=Pid}=State) ->
     %% Relay information to the actual process which is subscribed.
-    lager:warning("Received (~p) ~p for ~p ~p.\n",
-                  [Info, Message, Channel, Pid]),
+    lager:warning("Received ~p for ~p ~p.\n",
+                  [Message, Channel, Pid]),
     Pid ! Message,
     {noreply, State};
-handle_info(_Info, State) ->
+handle_info(Info, State) ->
+    lager:warning("Received unknown message ~p\n.", [Info]),
     {noreply, State}.
 
 %%--------------------------------------------------------------------

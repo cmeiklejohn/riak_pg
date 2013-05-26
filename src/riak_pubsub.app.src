@@ -6,6 +6,8 @@
   {registered, []},
   {applications, [kernel,
                   stdlib,
+                  gproc,
+                  sasl,
                   riak_core]},
   {mod, {riak_pubsub_app, []}},
   {env, []}

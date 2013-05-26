@@ -39,7 +39,8 @@ handle_command({publish, Channel, Message}, _Sender, State) ->
     lager:warning("Received publish for ~p and ~p.\n", [Channel, Message]),
 
     try
-        gproc:send({p, l, {riak_pubsub_subscription, Channel}}, {message, Message}),
+        gproc:send({p, l, {riak_pubsub_subscription, Channel}},
+                   {message, Message}),
 
         lager:warning("Relayed message to channel ~p.\n", [Channel])
     catch

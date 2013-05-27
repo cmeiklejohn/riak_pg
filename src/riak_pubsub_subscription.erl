@@ -32,8 +32,7 @@
 %% @end
 %%--------------------------------------------------------------------
 start_link(Partition, Channel, Pid) ->
-    Name = atom_to_list(?MODULE) ++ "_" ++ atom_to_list(Channel) ++ "_"
-           ++ pid_to_list(Pid) ++ "_" ++ integer_to_list(Partition),
+    Name = name(Partition, Channel, Pid),
     gen_server:start_link({local, list_to_atom(Name)},
                           ?MODULE, [Partition, Channel, Pid], []).
 
@@ -59,7 +58,7 @@ init([Partition, Channel, Pid]) ->
     %% Tag this process with a local property through gproc with a
     %% particular channel name.
     try
-        gproc:reg({p, l, {riak_pubsub_subscription, Channel}}),
+        gproc:reg({p, l, {riak_pubsub_subscription, Channel, Partition}}),
 
         lager:warning("Registered ~p to send to ~p on channel ~p.\n",
                       [self(), Pid, Channel])
@@ -152,3 +151,9 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+%% @doc Generate a unique name for this partition, channel and process.
+name(Partition, Channel, Pid) ->
+    atom_to_list(?MODULE) ++ "_" ++ atom_to_list(Channel) ++ "_"
+        ++ pid_to_list(Pid) ++ "_" ++ integer_to_list(Partition).
+

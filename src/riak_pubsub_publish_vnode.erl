@@ -44,11 +44,13 @@ publish(Preflist, Identity, Channel, Message) ->
 
 %% @doc When receiving a message, find all globally registered listeners
 %%      for the message and perform the relay.
-handle_command({publish, {ReqId, _}, Channel, Message}, _Sender, State) ->
+handle_command({publish, {ReqId, _}, Channel, Message},
+               _Sender,
+               #state{partition=Partition}=State) ->
     lager:warning("Received publish for ~p and ~p.\n", [Channel, Message]),
 
     try
-        gproc:send({p, l, {riak_pubsub_subscription, Channel}},
+        gproc:send({p, l, {riak_pubsub_subscription, Channel, Partition}},
                    {message, Message}),
 
         lager:warning("Relayed message to channel ~p.\n", [Channel])

@@ -24,6 +24,8 @@
          handle_coverage/4,
          handle_exit/3]).
 
+-export([publish/4]).
+
 -record(state, {partition}).
 
 %% API
@@ -33,9 +35,16 @@ start_vnode(I) ->
 init([Partition]) ->
     {ok, #state{partition=Partition}}.
 
+%% @doc Publish a message.
+publish(Preflist, Identity, Channel, Message) ->
+    riak_core_vnode_master:command(Preflist,
+                                   {publish, Identity, Channel, Message},
+                                   {fsm, undefined, self()},
+                                   riak_pubsub_publish_vnode_master).
+
 %% @doc When receiving a message, find all globally registered listeners
 %%      for the message and perform the relay.
-handle_command({publish, Channel, Message}, _Sender, State) ->
+handle_command({publish, {ReqId, _}, Channel, Message}, _Sender, State) ->
     lager:warning("Received publish for ~p and ~p.\n", [Channel, Message]),
 
     try
@@ -50,7 +59,7 @@ handle_command({publish, Channel, Message}, _Sender, State) ->
             ok
     end,
 
-    {reply, ok, State};
+    {reply, {ok, ReqId}, State};
 handle_command(Message, _Sender, State) ->
     ?PRINT({unhandled_command, Message}),
     {noreply, State}.

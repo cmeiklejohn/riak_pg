@@ -41,4 +41,17 @@ init(_Args) ->
                        {riak_pubsub_subscription_sup, start_link, []},
                         permanent, infinity, supervisor, [riak_pubsub_subscription_sup]},
 
-    {ok, {{one_for_one, 5, 10}, [VMaster, Publish, Subscribe, SubscriptionSup]}}.
+    PublishFSM = {riak_pubsub_publish_fsm_sup,
+                  {riak_pubsub_publish_fsm_sup, start_link, []},
+                   permanent, infinity, supervisor, [riak_pubsub_publish_fsm_sup]},
+
+    SubscribeFSM = {riak_pubsub_subscribe_fsm_sup,
+                    {riak_pubsub_subscribe_fsm_sup, start_link, []},
+                     permanent, infinity, supervisor, [riak_pubsub_subscribe_fsm_sup]},
+
+    {ok, {{one_for_one, 5, 10}, [VMaster,
+                                 Publish,
+                                 Subscribe,
+                                 SubscriptionSup,
+                                 PublishFSM,
+                                 SubscribeFSM]}}.

@@ -1,8 +1,8 @@
 %% @author Christopher Meiklejohn <christopher.meiklejohn@gmail.com>
 %% @copyright 2013 Christopher Meiklejohn.
-%% @doc Publish FSM.
+%% @doc Subscribe FSM.
 
--module(riak_pubsub_publish_fsm).
+-module(riak_pubsub_subscribe_fsm).
 -author('Christopher Meiklejohn <christopher.meiklejohn@gmail.com>').
 
 -behaviour(gen_fsm).
@@ -11,7 +11,7 @@
 
 %% API
 -export([start_link/4,
-         publish/2]).
+         subscribe/2]).
 
 %% Callbacks
 -export([init/1,
@@ -31,19 +31,19 @@
                 coordinator,
                 from,
                 channel,
-                message,
+                pid,
                 responses}).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
-start_link(ReqId, From, Channel, Message) ->
-    gen_fsm:start_link(?MODULE, [ReqId, From, Channel, Message], []).
+start_link(ReqId, From, Channel, Pid) ->
+    gen_fsm:start_link(?MODULE, [ReqId, From, Channel, Pid], []).
 
-publish(Channel, Message) ->
+subscribe(Channel, Pid) ->
     ReqId = mk_reqid(),
-    riak_pubsub_publish_fsm_sup:start_child([ReqId, self(), Channel, Message]),
+    riak_pubsub_subscribe_fsm_sup:start_child([ReqId, self(), Channel, Pid]),
     {ok, ReqId}.
 
 %%%===================================================================
@@ -70,20 +70,20 @@ terminate(_Reason, _SN, _SD) ->
 %%%===================================================================
 
 %% @doc Initialize the request.
-init([ReqId, From, Channel, Message]) ->
+init([ReqId, From, Channel, Pid]) ->
     State = #state{preflist=undefined,
                    req_id=ReqId,
                    coordinator=node(),
                    from=From,
                    channel=Channel,
-                   message=Message,
+                   pid=Pid,
                    responses=0},
     {ok, prepare, State, 0}.
 
 %% @doc Prepare request by retrieving the preflist.
 prepare(timeout, #state{channel=Channel}=State) ->
     DocIdx = riak_core_util:chash_key({<<"subscriptions">>, Channel}),
-    Preflist = riak_core_apl:get_apl(DocIdx, ?N, riak_pubsub_publish),
+    Preflist = riak_core_apl:get_apl(DocIdx, ?N, riak_pubsub_subscribe),
     {next_state, execute, State#state{preflist=Preflist}, 0}.
 
 %% @doc Execute the request.
@@ -91,10 +91,10 @@ execute(timeout, #state{preflist=Preflist,
                         req_id=ReqId,
                         coordinator=Coordinator,
                         channel=Channel,
-                        message=Message}=State) ->
-    riak_pubsub_publish_vnode:publish(Preflist,
-                                     {ReqId, Coordinator},
-                                     Channel, Message),
+                        pid=Pid}=State) ->
+    riak_pubsub_subscribe_vnode:subscribe(Preflist,
+                                          {ReqId, Coordinator},
+                                          Channel, Pid),
     {next_state, waiting, State}.
 
 %% @doc Attempt to write to every single node responsible for this

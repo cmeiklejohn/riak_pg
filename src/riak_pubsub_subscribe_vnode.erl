@@ -25,6 +25,8 @@
          handle_coverage/4,
          handle_exit/3]).
 
+-export([subscribe/4]).
+
 -record(state, {partition, channels}).
 
 %% API
@@ -34,9 +36,17 @@ start_vnode(I) ->
 init([Partition]) ->
     {ok, #state{partition=Partition, channels=dict:new()}}.
 
+%% @doc Subscribe to a channel.
+subscribe(Preflist, Identity, Channel, Pid) ->
+    riak_core_vnode_master:command(Preflist,
+                                   {subscribe, Identity, Channel, Pid},
+                                   {fsm, undefined, self()},
+                                   riak_pubsub_subscribe_vnode_master).
+
+
 %% @doc Respond to a subscription; launch a child process,
 %%      and register it with gproc under a given channel name.
-handle_command({subscribe, Channel, Pid},
+handle_command({subscribe, {ReqId, _}, Channel, Pid},
                _Sender,
                #state{channels=Channels0}=State) ->
     lager:warning("Received subscribe for ~p and ~p.\n",
@@ -44,9 +54,9 @@ handle_command({subscribe, Channel, Pid},
 
     case subscribe(Channels0, Channel, Pid) of
         {error, Error} ->
-            {reply, {error, Error}, State};
+            {reply, {ok, ReqId, {error, Error}}, State};
         {ok, Channels} ->
-            {reply, ok, State#state{channels=Channels}}
+            {reply, {ok, ReqId}, State#state{channels=Channels}}
     end;
 handle_command(Message, _Sender, State) ->
     ?PRINT({unhandled_command, Message}),

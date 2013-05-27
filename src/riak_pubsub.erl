@@ -23,15 +23,8 @@ publish(Channel, Message) ->
 
 %% @doc Subscribe to updates on a given channel.
 subscribe(Channel, Pid) ->
-    DocIdx = riak_core_util:chash_key({<<"subscriptions">>,
-                                       Channel}),
-    Preflist = riak_core_apl:get_primary_apl(DocIdx,
-                                             1,
-                                             riak_pubsub_subscribe),
-    [{IndexNode, _Type}] = Preflist,
-    riak_core_vnode_master:sync_spawn_command(IndexNode,
-                                              {subscribe, Channel, Pid},
-                                              riak_pubsub_subscribe_vnode_master).
+    {ok, ReqId} = riak_pubsub_subscribe_fsm:subscribe(Channel, Pid),
+    wait_for_reqid(ReqId, ?TIMEOUT).
 
 %% @doc Pings a random vnode to make sure communication is functional.
 ping() ->

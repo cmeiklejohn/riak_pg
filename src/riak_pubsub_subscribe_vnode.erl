@@ -48,11 +48,11 @@ subscribe(Preflist, Identity, Channel, Pid) ->
 %%      and register it with gproc under a given channel name.
 handle_command({subscribe, {ReqId, _}, Channel, Pid},
                _Sender,
-               #state{channels=Channels0}=State) ->
-    lager:warning("Received subscribe for ~p and ~p.\n",
-                  [Channel, Pid]),
+               #state{channels=Channels0, partition=Partition}=State) ->
+    lager:warning("Received subscribe for ~p and ~p and ~p.\n",
+                  [Channel, Pid, Partition]),
 
-    case subscribe(Channels0, Channel, Pid) of
+    case perform(Channels0, Partition, Channel, Pid) of
         {error, Error} ->
             {reply, {ok, ReqId, {error, Error}}, State};
         {ok, Channels} ->
@@ -75,10 +75,10 @@ handoff_cancelled(State) ->
 handoff_finished(_TargetNode, State) ->
     {ok, State}.
 
-handle_handoff_data(Data, #state{channels=Channels0}=State) ->
+handle_handoff_data(Data, #state{channels=Channels0, partition=Partition}=State) ->
     {Channel, Pids} = binary_to_term(Data),
 
-    case subscribe(Channels0, Channel, Pids) of
+    case perform(Channels0, Partition, Channel, Pids) of
         {error, Error} ->
             {reply, {error, Error}, State};
         {ok, Channels} ->
@@ -108,10 +108,15 @@ terminate(_Reason, _State) ->
 
 %% @doc Subscribe to a channel with a given pid, and return an
 %%      updated dict of channel to pid mappings.
--spec subscribe(dict(), term(), pid() | list(pid())) -> dict().
-subscribe(Channels0, Channel, Pid) when is_pid(Pid) ->
-    case riak_pubsub_subscription_sup:start_child(Channel, Pid) of
+perform(Channels0, Partition, Channel, Pid) when is_pid(Pid) ->
+    lager:warning("Starting subscription for ~p and ~p.\n",
+                  [Channel, Pid]),
+
+    case riak_pubsub_subscription_sup:start_child(Partition, Channel, Pid) of
         {error, Error} ->
+            lager:warning("Subscription failed: ~p ~p ~p.\n",
+                          [Channel, Pid, Error]),
+
             {error, Error};
         _ ->
             Channels = try
@@ -122,6 +127,11 @@ subscribe(Channels0, Channel, Pid) when is_pid(Pid) ->
                        end,
             {ok, Channels}
     end;
-subscribe(Channels0, Channel, Pids0) when is_list(Pids0) ->
+perform(Channels0, Partition, Channel, Pids0) when is_list(Pids0) ->
     lists:foldl(fun(Pid, Channels) ->
-                subscribe(Channels, Channel, Pid) end, Channels0, Pids0).
+                case perform(Channels, Partition, Channel, Pid) of
+                    {error, _} ->
+                        Channels;
+                    {ok, Channels1} ->
+                        Channels1
+                end end, Channels0, Pids0).

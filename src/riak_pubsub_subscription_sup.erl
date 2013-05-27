@@ -9,7 +9,7 @@
 
 %% API
 -export([start_link/0,
-         start_child/2,
+         start_child/3,
          terminate_child/2]).
 
 %% Supervisor callbacks
@@ -24,10 +24,10 @@ start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 %% @doc Start a child.
-start_child(Channel, Pid) ->
-    lager:warning("Starting child to send to ~p on channel ~p.\n",
-                  [Pid, Channel]),
-    supervisor:start_child(?MODULE, [Channel, Pid]).
+start_child(Partition, Channel, Pid) ->
+    lager:warning("Starting child to send to ~p ~p ~p.\n",
+                  [Partition, Channel, Pid]),
+    supervisor:start_child(?MODULE, [Partition, Channel, Pid]).
 
 %% @doc Stop a child immediately
 terminate_child(Supervisor, Pid) ->

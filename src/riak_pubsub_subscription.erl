@@ -8,7 +8,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/2]).
+-export([start_link/3]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -18,7 +18,7 @@
          terminate/2,
          code_change/3]).
 
--record(state, {channel, pid}).
+-record(state, {partition, channel, pid}).
 
 %%%===================================================================
 %%% API
@@ -31,11 +31,11 @@
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
-start_link(Channel, Pid) ->
+start_link(Partition, Channel, Pid) ->
     Name = atom_to_list(?MODULE) ++ "_" ++ atom_to_list(Channel) ++ "_"
-           ++ pid_to_list(Pid),
+           ++ pid_to_list(Pid) ++ "_" ++ integer_to_list(Partition),
     gen_server:start_link({local, list_to_atom(Name)},
-                          ?MODULE, [Channel, Pid], []).
+                          ?MODULE, [Partition, Channel, Pid], []).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -52,7 +52,7 @@ start_link(Channel, Pid) ->
 %%                     {stop, Reason}
 %% @end
 %%--------------------------------------------------------------------
-init([Channel, Pid]) ->
+init([Partition, Channel, Pid]) ->
     lager:warning("Registering ~p to send to ~p on channel ~p.\n",
                   [self(), Pid, Channel]),
 
@@ -71,7 +71,7 @@ init([Channel, Pid]) ->
             {stop, registration_failed}
     end,
 
-    {ok, #state{channel=Channel, pid=Pid}}.
+    {ok, #state{partition=Partition, channel=Channel, pid=Pid}}.
 
 %%--------------------------------------------------------------------
 %% @private

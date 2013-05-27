@@ -14,6 +14,8 @@
          publish/2,
          subscribe/2]).
 
+-export([test/0]).
+
 %% Public API
 
 %% @doc Publish updates on a given channel.
@@ -35,6 +37,34 @@ ping() ->
     riak_core_vnode_master:sync_spawn_command(IndexNode,
                                               ping,
                                               riak_pubsub_vnode_master).
+
+%% @doc Test a round trip.
+test() ->
+    case riak_pubsub:subscribe(test_channel, self()) of
+        {error, timeout} ->
+            lager:warning("Round-trip timeout!"),
+            false;
+        _ ->
+            ok = riak_pubsub:publish(test_channel, 1),
+            ok = flush(),
+            true
+    end.
+
+%%%===================================================================
+%%% Internal Functions
+%%%===================================================================
+
+%% @doc Flush the message queue immediately.
+-spec flush() -> ok.
+flush() ->
+    receive
+        Result ->
+            lager:warning("Received: ~p", [Result]),
+            flush()
+    after
+        0 ->
+            ok
+    end.
 
 %% @doc Wait for a response.
 wait_for_reqid(ReqID, Timeout) ->

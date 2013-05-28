@@ -43,7 +43,8 @@ start_link(ReqId, From, Channel, Pid) ->
 
 subscribe(Channel, Pid) ->
     ReqId = mk_reqid(),
-    riak_pubsub_subscribe_fsm_sup:start_child([ReqId, self(), Channel, Pid]),
+    riak_pubsub_subscribe_fsm_sup:start_child(
+        [ReqId, self(), Channel, Pid]),
     {ok, ReqId}.
 
 %%%===================================================================

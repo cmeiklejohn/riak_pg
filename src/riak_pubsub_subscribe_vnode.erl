@@ -114,22 +114,20 @@ perform(Channels0, Partition, Channel, Pid) when is_pid(Pid) ->
 
     case already_spawned(Channels0, Channel, Pid) of
         false ->
-            case riak_pubsub_subscription_sup:start_child(Partition,
-                                                          Channel,
-                                                          Pid) of
-                {error, Error} ->
-                    lager:warning("Subscription failed: ~p ~p ~p.\n",
-                                  [Channel, Pid, Error]),
+            try
+                gproc:reg({p, l,
+                          {riak_pubsub_subscription, Channel, Partition}}, Pid),
 
-                    {error, Error};
-                _ ->
-                    Channels = try
-                                    dict:append_list(Channel, [Pid], Channels0)
-                               catch
-                                    _:_ ->
-                                        dict:store(Channel, [Pid], Channels0)
-                               end,
-                    {ok, Channels}
+                Channels = try
+                                dict:append_list(Channel, [Pid], Channels0)
+                           catch
+                                _:_ ->
+                                    dict:store(Channel, [Pid], Channels0)
+                           end,
+                {ok, Channels}
+            catch
+                _:_ ->
+                    {error, registration_failed}
             end;
         true ->
             {ok, Channels0}

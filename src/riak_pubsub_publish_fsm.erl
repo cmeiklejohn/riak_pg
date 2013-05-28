@@ -23,7 +23,8 @@
 
 %% States
 -export([prepare/2,
-         execute/2]).
+         execute/2,
+         waiting/2]).
 
 -record(state, {preflist,
                 req_id,
@@ -31,7 +32,8 @@
                 from,
                 channel,
                 message,
-                responses}).
+                num_responses,
+                pid_mappings}).
 
 %%%===================================================================
 %%% API
@@ -77,7 +79,8 @@ init([ReqId, From, Channel, Message]) ->
                    from=From,
                    channel=Channel,
                    message=Message,
-                   responses=0},
+                   num_responses=0,
+                   pid_mappings=[]},
     {ok, prepare, State, 0}.
 
 %% @doc Prepare request by retrieving the preflist.
@@ -87,42 +90,41 @@ prepare(timeout, #state{channel=Channel}=State) ->
     {next_state, execute, State#state{preflist=Preflist}, 0}.
 
 %% @doc Execute the request.
-execute(timeout, #state{preflist=Preflist0,
+execute(timeout, #state{preflist=Preflist,
                         req_id=ReqId,
                         coordinator=Coordinator,
                         channel=Channel,
-                        from=From,
                         message=Message}=State) ->
-    [IndexNode|Preflist] = Preflist0,
+    riak_pubsub_publish_vnode:publish(Preflist,
+                                      {ReqId, Coordinator},
+                                      Channel, Message),
+    {next_state, waiting, State}.
 
-    lager:warning("Publishing to ~p.\n",
-                  [IndexNode]),
-
-    case riak_pubsub_publish_vnode:publish(IndexNode,
-                                           {ReqId, Coordinator},
-                                           Channel, Message) of
-        {error, timeout} ->
-            lager:warning("Publishing to ~p failed with timeout.\n",
-                          [IndexNode]),
-
-            case Preflist of
-                [] ->
-                    lager:warning("Failed: preflist_exhausted.\n"),
-
-                    From ! {ReqId, ok, {error, preflist_exhausted}},
-                    {stop, normal, State};
-                _ ->
-                    lager:warning("Moving to next index.\n"),
-
-                    {next_state, execute,
-                     State#state{preflist=Preflist},
-                     0}
-            end;
-        _ ->
-            lager:warning("Successful publication.\n"),
-
+%% @doc Pull a unique list of subscriptions from replicas, and
+%%      relay the message to it.
+waiting({ok, ReqId, PidMappings},
+        #state{num_responses=NumResponses0,
+               pid_mappings=PidMappings0,
+               message=Message,
+               from=From}=State0) ->
+    lager:warning("Received pidmappings: ~p\n", [PidMappings]),
+    NumResponses = NumResponses0 + 1,
+    PidMappings1 = PidMappings0 ++ PidMappings,
+    State = State0#state{num_responses=NumResponses,
+                         pid_mappings=PidMappings1},
+    case NumResponses =:= ?N of
+        true ->
+            Pids0 = lists:usort(fun({_, ChildPid1}, {_, ChildPid2}) ->
+                            ChildPid1 =:= ChildPid2
+                    end, PidMappings1),
+            Pids = lists:map(fun({_, ChildPid}) -> ChildPid end,
+                             Pids0),
+            lager:warning("List of pids is: ~p", [Pids]),
+            [Pid ! Message || Pid <- Pids],
             From ! {ReqId, ok},
-            {stop, normal, State}
+            {stop, normal, State};
+        false ->
+            {next_state, waiting, State}
     end.
 
 %%%===================================================================

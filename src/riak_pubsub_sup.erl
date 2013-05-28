@@ -37,10 +37,6 @@ init(_Args) ->
                  {riak_core_vnode_master, start_link, [riak_pubsub_subscribe_vnode]},
                   permanent, 5000, worker, [riak_core_vnode_master]},
 
-    SubscriptionSup = {riak_pubsub_subscription_sup,
-                       {riak_pubsub_subscription_sup, start_link, []},
-                        permanent, infinity, supervisor, [riak_pubsub_subscription_sup]},
-
     PublishFSM = {riak_pubsub_publish_fsm_sup,
                   {riak_pubsub_publish_fsm_sup, start_link, []},
                    permanent, infinity, supervisor, [riak_pubsub_publish_fsm_sup]},
@@ -52,6 +48,5 @@ init(_Args) ->
     {ok, {{one_for_one, 5, 10}, [VMaster,
                                  Publish,
                                  Subscribe,
-                                 SubscriptionSup,
                                  PublishFSM,
                                  SubscribeFSM]}}.

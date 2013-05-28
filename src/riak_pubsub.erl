@@ -14,7 +14,7 @@
          publish/2,
          subscribe/2]).
 
--export([test/0]).
+-export([test/2]).
 
 %% Public API
 
@@ -39,13 +39,12 @@ ping() ->
                                               riak_pubsub_vnode_master).
 
 %% @doc Test a round trip.
-test() ->
-    case riak_pubsub:subscribe(test_channel, self()) of
+test(Channel, Message) ->
+    case riak_pubsub:subscribe(Channel, self()) of
         {error, timeout} ->
-            lager:warning("Round-trip timeout!"),
             false;
         _ ->
-            ok = riak_pubsub:publish(test_channel, 1),
+            ok = riak_pubsub:publish(Channel, Message),
             ok = flush(),
             true
     end.

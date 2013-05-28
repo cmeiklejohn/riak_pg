@@ -23,8 +23,7 @@
 
 %% States
 -export([prepare/2,
-         execute/2,
-         waiting/2]).
+         execute/2]).
 
 -record(state, {preflist,
                 req_id,
@@ -43,7 +42,8 @@ start_link(ReqId, From, Channel, Message) ->
 
 publish(Channel, Message) ->
     ReqId = mk_reqid(),
-    riak_pubsub_publish_fsm_sup:start_child([ReqId, self(), Channel, Message]),
+    riak_pubsub_publish_fsm_sup:start_child(
+        [ReqId, self(), Channel, Message]),
     {ok, ReqId}.
 
 %%%===================================================================
@@ -87,27 +87,40 @@ prepare(timeout, #state{channel=Channel}=State) ->
     {next_state, execute, State#state{preflist=Preflist}, 0}.
 
 %% @doc Execute the request.
-execute(timeout, #state{preflist=Preflist,
+execute(timeout, #state{preflist=Preflist0,
                         req_id=ReqId,
                         coordinator=Coordinator,
                         channel=Channel,
+                        from=From,
                         message=Message}=State) ->
-    riak_pubsub_publish_vnode:publish(Preflist,
-                                     {ReqId, Coordinator},
-                                     Channel, Message),
-    {next_state, waiting, State}.
+    [IndexNode|Preflist] = Preflist0,
 
-%% @doc Attempt to write to every single node responsible for this
-%%      channel.
-waiting({ok, ReqId}, #state{responses=Responses0, from=From}=State0) ->
-    Responses = Responses0 + 1,
-    State = State0#state{responses=Responses},
-    case Responses =:= ?N of
-        true ->
+    lager:warning("Publishing to ~p.\n",
+                  [IndexNode]),
+
+    case riak_pubsub_publish_vnode:publish(IndexNode,
+                                           {ReqId, Coordinator},
+                                           Channel, Message) of
+        {error, timeout} ->
+            lager:warning("Publishing to ~p failed with timeout.\n",
+                          [IndexNode]),
+
+            case Preflist of
+                [] ->
+                    lager:warning("Failed: preflist_exhausted.\n"),
+
+                    From ! {ReqId, ok, {error, preflist_exhausted}},
+                    {stop, normal, State};
+                _ ->
+                    lager:warning("Moving to next index.\n"),
+
+                    {next_state, execute,
+                     State#state{preflist=Preflist},
+                     0}
+            end;
+        _ ->
             From ! {ReqId, ok},
-            {stop, normal, State};
-        false ->
-            {next_state, waiting, State}
+            {stop, normal, State}
     end.
 
 %%%===================================================================

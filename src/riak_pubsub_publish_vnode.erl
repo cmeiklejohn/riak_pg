@@ -36,27 +36,31 @@ init([Partition]) ->
     {ok, #state{partition=Partition}}.
 
 %% @doc Publish a message.
-publish(Preflist, Identity, Channel, Message) ->
-    riak_core_vnode_master:command(Preflist,
-                                   {publish, Identity, Channel, Message},
-                                   {fsm, undefined, self()},
-                                   riak_pubsub_publish_vnode_master).
+publish(IndexNode, Identity, Channel, Message) ->
+    riak_core_vnode_master:sync_command(
+        IndexNode,
+        {publish, Identity, Channel, Message},
+        riak_pubsub_publish_vnode_master).
 
-%% @doc When receiving a message, find all globally registered listeners
-%%      for the message and perform the relay.
+%% @doc When receiving a message, find all globally
+%%      registered listeners for the message and perform the relay.
 handle_command({publish, {ReqId, _}, Channel, Message},
                _Sender,
                #state{partition=Partition}=State) ->
-    lager:warning("Received publish for ~p and ~p.\n", [Channel, Message]),
+    lager:warning("Received publish for ~p and ~p.\n",
+                  [Channel, Message]),
 
     try
-        gproc:send({p, l, {riak_pubsub_subscription, Channel, Partition}},
+        gproc:send({p, l,
+                    {riak_pubsub_subscription, Channel, Partition}},
                    {message, Message}),
 
-        lager:warning("Relayed message to channel ~p.\n", [Channel])
+        lager:warning("Relayed message to channel ~p.\n",
+                      [Channel])
     catch
         _:_ ->
-            lager:warning("Failed relay for channel ~p.\n", [Channel]),
+            lager:warning("Failed relay for channel ~p.\n",
+                          [Channel]),
 
             ok
     end,

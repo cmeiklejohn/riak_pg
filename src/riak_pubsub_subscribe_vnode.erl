@@ -112,20 +112,27 @@ perform(Channels0, Partition, Channel, Pid) when is_pid(Pid) ->
     lager:warning("Starting subscription for ~p and ~p.\n",
                   [Channel, Pid]),
 
-    case riak_pubsub_subscription_sup:start_child(Partition, Channel, Pid) of
-        {error, Error} ->
-            lager:warning("Subscription failed: ~p ~p ~p.\n",
-                          [Channel, Pid, Error]),
+    case already_spawned(Channels0, Channel, Pid) of
+        false ->
+            case riak_pubsub_subscription_sup:start_child(Partition,
+                                                          Channel,
+                                                          Pid) of
+                {error, Error} ->
+                    lager:warning("Subscription failed: ~p ~p ~p.\n",
+                                  [Channel, Pid, Error]),
 
-            {error, Error};
-        _ ->
-            Channels = try
-                            dict:append_list(Channel, [Pid], Channels0)
-                       catch
-                            _:_ ->
-                                dict:store(Channel, [Pid], Channels0)
-                       end,
-            {ok, Channels}
+                    {error, Error};
+                _ ->
+                    Channels = try
+                                    dict:append_list(Channel, [Pid], Channels0)
+                               catch
+                                    _:_ ->
+                                        dict:store(Channel, [Pid], Channels0)
+                               end,
+                    {ok, Channels}
+            end;
+        true ->
+            {ok, Channels0}
     end;
 perform(Channels0, Partition, Channel, Pids0) when is_list(Pids0) ->
     lists:foldl(fun(Pid, Channels) ->
@@ -135,3 +142,12 @@ perform(Channels0, Partition, Channel, Pids0) when is_list(Pids0) ->
                     {ok, Channels1} ->
                         Channels1
                 end end, Channels0, Pids0).
+
+%% @doc Determine if we've already spawned a process for this.
+already_spawned(Channels, Channel, Pid) ->
+    case dict:find(Channel, Channels) of
+        {ok, Pids} ->
+            lists:member(Pid, Pids);
+        _ ->
+            false
+    end.

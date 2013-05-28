@@ -119,6 +119,8 @@ execute(timeout, #state{preflist=Preflist0,
                      0}
             end;
         _ ->
+            lager:warning("Successful publication.\n"),
+
             From ! {ReqId, ok},
             {stop, normal, State}
     end.

@@ -135,13 +135,15 @@ perform(Channels0, Partition, Channel, Pid) when is_pid(Pid) ->
             {ok, Channels0}
     end;
 perform(Channels0, Partition, Channel, Pids0) when is_list(Pids0) ->
-    lists:foldl(fun(Pid, Channels) ->
+    Channels1 = lists:foldl(fun(Pid, Channels) ->
                 case perform(Channels, Partition, Channel, Pid) of
                     {error, _} ->
                         Channels;
                     {ok, Channels1} ->
                         Channels1
-                end end, Channels0, Pids0).
+                end
+        end, Channels0, Pids0),
+    {ok, Channels1}.
 
 %% @doc Determine if we've already spawned a process for this.
 already_spawned(Channels, Channel, Pid) ->

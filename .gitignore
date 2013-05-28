@@ -6,3 +6,4 @@ rel/riak_pubsub
 dev
 apps/riak_pubsub/src/*
 tags
+rel/vars/*_vars.config

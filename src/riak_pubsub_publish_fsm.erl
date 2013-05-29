@@ -33,7 +33,8 @@
                 channel,
                 message,
                 num_responses,
-                pid_mappings}).
+                replies,
+                pids}).
 
 %%%===================================================================
 %%% API
@@ -80,7 +81,7 @@ init([ReqId, From, Channel, Message]) ->
                    channel=Channel,
                    message=Message,
                    num_responses=0,
-                   pid_mappings=[]},
+                   replies=[]},
     {ok, prepare, State, 0}.
 
 %% @doc Prepare request by retrieving the preflist.
@@ -102,26 +103,34 @@ execute(timeout, #state{preflist=Preflist,
 
 %% @doc Pull a unique list of subscriptions from replicas, and
 %%      relay the message to it.
-waiting({ok, ReqId, PidMappings},
-        #state{num_responses=NumResponses0,
-               pid_mappings=PidMappings0,
+waiting({ok, _ReqId, IndexNode, Reply},
+        #state{from=From,
+               req_id=ReqId,
                message=Message,
-               from=From}=State0) ->
-    lager:warning("Received pidmappings: ~p\n", [PidMappings]),
+               num_responses=NumResponses0,
+               replies=Replies0}=State0) ->
+    lager:warning("Received reply: ~p\n", [Reply]),
+
     NumResponses = NumResponses0 + 1,
-    PidMappings1 = PidMappings0 ++ PidMappings,
-    State = State0#state{num_responses=NumResponses,
-                         pid_mappings=PidMappings1},
+    Replies = [{IndexNode, Reply}|Replies0],
+    State = State0#state{num_responses=NumResponses, replies=Replies},
+
     case NumResponses =:= ?R of
         true ->
-            Pids0 = lists:usort(fun({_, ChildPid1}, {_, ChildPid2}) ->
-                            ChildPid1 =:= ChildPid2
-                    end, PidMappings1),
-            Pids = lists:map(fun({_, ChildPid}) -> ChildPid end,
-                             Pids0),
-            lager:warning("List of pids is: ~p", [Pids]),
+            Pids0 = lists:flatmap(fun({_, Pids}) -> Pids end, Replies),
+            Pids = lists:usort(Pids0),
+
+            lager:warning("Pid list is ~p.\n", [Pids]),
+
+            %% Publish to all subscribers.
             [Pid ! Message || Pid <- Pids],
+
+            %% Return OK response.
             From ! {ReqId, ok},
+
+            %% TODO: Read repair.
+
+            %% Terminate.
             {stop, normal, State};
         false ->
             {next_state, waiting, State}

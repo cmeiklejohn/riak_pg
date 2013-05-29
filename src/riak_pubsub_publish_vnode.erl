@@ -26,14 +26,14 @@
 
 -export([publish/4]).
 
--record(state, {partition}).
+-record(state, {partition, node}).
 
 %% API
 start_vnode(I) ->
     riak_core_vnode_master:get_vnode_pid(I, ?MODULE).
 
 init([Partition]) ->
-    {ok, #state{partition=Partition}}.
+    {ok, #state{partition=Partition, node=node()}}.
 
 %% @doc Publish a message.
 publish(Preflist, Identity, Channel, Message) ->
@@ -47,15 +47,17 @@ publish(Preflist, Identity, Channel, Message) ->
 %%      registered listeners for the message and perform the relay.
 handle_command({publish, {ReqId, _}, Channel, _Message},
                _Sender,
-               #state{partition=Partition}=State) ->
-    PidMappings= try
-        gproc:lookup_values({p, l, {riak_pubsub_subscription, Channel, Partition}})
+               #state{partition=Partition, node=Node}=State) ->
+    Reply = try
+        Key = {p, l, {riak_pubsub_subscription, Channel, Partition}},
+        [{_Pid, Pids}] = gproc:lookup_values(Key),
+        Pids
     catch
         _:_ ->
             []
     end,
 
-    {reply, {ok, ReqId, PidMappings}, State};
+    {reply, {ok, ReqId, {Partition, Node}, Reply}, State};
 handle_command(Message, _Sender, State) ->
     ?PRINT({unhandled_command, Message}),
     {noreply, State}.

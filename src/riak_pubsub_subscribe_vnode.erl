@@ -112,18 +112,28 @@ perform(Channels0, Partition, Channel, Pid) when is_pid(Pid) ->
     lager:warning("Starting subscription for ~p and ~p.\n",
                   [Channel, Pid]),
 
+    Key = {p, l, {riak_pubsub_subscription, Channel, Partition}},
+
+    %% Attempt to register the key if it hasn't been yet.
+    try
+        gproc:reg(Key)
+    catch
+        _:_ ->
+            ok
+    end,
+
+    %% Spawn processes if necessary.
     case already_spawned(Channels0, Channel, Pid) of
         false ->
             try
-                gproc:reg({p, l,
-                          {riak_pubsub_subscription, Channel, Partition}}, Pid),
+                Channels = update_channels(Channels0, Pid, Channel),
 
-                Channels = try
-                                dict:append_list(Channel, [Pid], Channels0)
-                           catch
-                                _:_ ->
-                                    dict:store(Channel, [Pid], Channels0)
-                           end,
+                %% Get updated list of mappings.
+                {ok, Pids} = dict:find(Channel, Channels),
+
+                %% Update gproc with the new set of pids.
+                true = gproc:set_value(Key, Pids),
+
                 {ok, Channels}
             catch
                 _:_ ->
@@ -150,4 +160,13 @@ already_spawned(Channels, Channel, Pid) ->
             lists:member(Pid, Pids);
         _ ->
             false
+    end.
+
+%% @doc Update channels listing with new channel/pid mapping.
+update_channels(Channels, Pid, Channel) ->
+    try
+         dict:append_list(Channel, [Pid], Channels)
+    catch
+         _:_ ->
+             dict:store(Channel, [Pid], Channels)
     end.

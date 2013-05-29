@@ -24,7 +24,9 @@
 %% States
 -export([prepare/2,
          execute/2,
-         waiting/2]).
+         waiting/2,
+         waiting_n/2,
+         finalize/2]).
 
 -record(state, {preflist,
                 req_id,
@@ -128,17 +130,49 @@ waiting({ok, _ReqId, IndexNode, Reply},
             %% Return OK response.
             From ! {ReqId, ok},
 
-            %% TODO: Read repair.
-
-            %% Terminate.
-            {stop, normal, State};
+            case NumResponses =:= ?N of
+                true ->
+                    {next_state, finalize, State, 0};
+                false ->
+                    {next_state, waiting_n, State}
+            end;
         false ->
             {next_state, waiting, State}
     end.
 
+%% @doc Wait for the remainder of responses from replicas.
+waiting_n({ok, _ReqId, IndexNode, Reply},
+        #state{num_responses=NumResponses0,
+               replies=Replies0}=State0) ->
+    lager:warning("Received waiting_n reply: ~p\n", [Reply]),
+
+    NumResponses = NumResponses0 + 1,
+    Replies = [{IndexNode, Reply}|Replies0],
+    State = State0#state{num_responses=NumResponses, replies=Replies},
+
+    case NumResponses =:= ?N of
+        true ->
+            {next_state, finalize, State, 0};
+        false ->
+            {next_state, waiting_n, State}
+    end.
+
+%% @doc Perform read repair.
+finalize(timeout, #state{replies=Replies}=State) ->
+    lager:warning("Finalize entered with ~p\n", [Replies]),
+    ok = repair(Replies, State),
+    {stop, normal, State}.
+
 %%%===================================================================
 %%% Internal Functions
 %%%===================================================================
+
+%% @doc Trigger repair.
+repair([{IndexNode, Pids}|Replies],
+       #state{channel=Channel}=State) ->
+    riak_pubsub_subscribe_vnode:repair(IndexNode, Channel, Pids),
+    repair(Replies, State);
+repair([], _State) -> ok.
 
 mk_reqid() ->
     erlang:phash2(erlang:now()).

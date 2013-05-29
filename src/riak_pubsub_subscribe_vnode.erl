@@ -25,7 +25,8 @@
          handle_coverage/4,
          handle_exit/3]).
 
--export([subscribe/4]).
+-export([subscribe/4,
+         repair/3]).
 
 -record(state, {partition, channels}).
 
@@ -43,6 +44,26 @@ subscribe(Preflist, Identity, Channel, Pid) ->
                                    {fsm, undefined, self()},
                                    riak_pubsub_subscribe_vnode_master).
 
+%% @doc Perform repair.
+repair(IndexNode, Channel, Pid) ->
+    riak_core_vnode_master:command(IndexNode,
+                                   {repair, Channel, Pid},
+                                   ignore,
+                                   riak_pubsub_subscribe_vnode_master).
+
+%% @doc Perform subscription as part of repair.
+handle_command({repair, Channel, Pid},
+               _Sender,
+               #state{channels=Channels0, partition=Partition}=State) ->
+    lager:warning("Received repair for ~p and ~p and ~p.\n",
+                  [Channel, Pid, Partition]),
+
+    case perform(Channels0, Partition, Channel, Pid) of
+        {error, _Error} ->
+            {noreply, State};
+        {ok, Channels} ->
+            {noreply, State#state{channels=Channels}}
+    end;
 
 %% @doc Respond to a subscription; launch a child process,
 %%      and register it with gproc under a given channel name.

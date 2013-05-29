@@ -83,6 +83,7 @@ init([ReqId, From, Channel, Message]) ->
                    channel=Channel,
                    message=Message,
                    num_responses=0,
+                   pids=[],
                    replies=[]},
     {ok, prepare, State, 0}.
 
@@ -132,9 +133,9 @@ waiting({ok, _ReqId, IndexNode, Reply},
 
             case NumResponses =:= ?N of
                 true ->
-                    {next_state, finalize, State, 0};
+                    {next_state, finalize, State#state{pids=Pids}, 0};
                 false ->
-                    {next_state, waiting_n, State}
+                    {next_state, waiting_n, State#state{pids=Pids}}
             end;
         false ->
             {next_state, waiting, State}
@@ -167,10 +168,15 @@ finalize(timeout, #state{replies=Replies}=State) ->
 %%% Internal Functions
 %%%===================================================================
 
-%% @doc Trigger repair.
-repair([{IndexNode, Pids}|Replies],
-       #state{channel=Channel}=State) ->
-    riak_pubsub_subscribe_vnode:repair(IndexNode, Channel, Pids),
+%% @doc Trigger repair if necessary.
+repair([{IndexNode, Pids0}|Replies],
+       #state{channel=Channel, pids=Pids}=State) ->
+    case lists:sort(Pids) =:= lists:sort(Pids0) of
+        false ->
+            riak_pubsub_subscribe_vnode:repair(IndexNode, Channel, Pids);
+        true ->
+            ok
+    end,
     repair(Replies, State);
 repair([], _State) -> ok.
 

@@ -135,7 +135,7 @@ waiting({ok, _ReqId, IndexNode, Reply},
                 true ->
                     {next_state, finalize, State#state{pids=Pids}, 0};
                 false ->
-                    {next_state, waiting_n, State#state{pids=Pids}}
+                    {next_state, waiting_n, State}
             end;
         false ->
             {next_state, waiting, State}
@@ -161,17 +161,23 @@ waiting_n({ok, _ReqId, IndexNode, Reply},
 %% @doc Perform read repair.
 finalize(timeout, #state{replies=Replies}=State) ->
     lager:warning("Finalize entered with ~p\n", [Replies]),
-    ok = repair(Replies, State),
+    Pids = merge(Replies),
+    ok = repair(Replies, State#state{pids=Pids}),
     {stop, normal, State}.
 
 %%%===================================================================
 %%% Internal Functions
 %%%===================================================================
 
+%% @doc Perform merge of replicas.
+%%      Since we only ever listen, just merge the list.
+merge(Replies) ->
+    lists:usort(lists:flatmap(fun({_, Pids}) -> Pids end, Replies)).
+
 %% @doc Trigger repair if necessary.
-repair([{IndexNode, Pids0}|Replies],
+repair([{IndexNode, NodePids}|Replies],
        #state{channel=Channel, pids=Pids}=State) ->
-    case lists:sort(Pids) =:= lists:sort(Pids0) of
+    case lists:sort(NodePids) =:= lists:sort(Pids) of
         false ->
             riak_pubsub_subscribe_vnode:repair(IndexNode, Channel, Pids);
         true ->

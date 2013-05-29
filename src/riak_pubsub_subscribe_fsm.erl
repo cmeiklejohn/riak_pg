@@ -103,7 +103,7 @@ execute(timeout, #state{preflist=Preflist,
 waiting({ok, ReqId}, #state{responses=Responses0, from=From}=State0) ->
     Responses = Responses0 + 1,
     State = State0#state{responses=Responses},
-    case Responses =:= ?N of
+    case Responses =:= ?W of
         true ->
             From ! {ReqId, ok},
             {stop, normal, State};

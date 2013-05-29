@@ -112,7 +112,7 @@ waiting({ok, ReqId, PidMappings},
     PidMappings1 = PidMappings0 ++ PidMappings,
     State = State0#state{num_responses=NumResponses,
                          pid_mappings=PidMappings1},
-    case NumResponses =:= ?N of
+    case NumResponses =:= ?R of
         true ->
             Pids0 = lists:usort(fun({_, ChildPid1}, {_, ChildPid2}) ->
                             ChildPid1 =:= ChildPid2

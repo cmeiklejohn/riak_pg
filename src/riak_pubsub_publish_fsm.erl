@@ -120,10 +120,7 @@ waiting({ok, _ReqId, IndexNode, Reply},
 
     case NumResponses =:= ?R of
         true ->
-            Pids0 = lists:flatmap(fun({_, Pids}) -> Pids end, Replies),
-            Pids = lists:usort(Pids0),
-
-            lager:warning("Pid list is ~p.\n", [Pids]),
+            Pids = riak_dt_orset:value(merge(Replies)),
 
             %% Publish to all subscribers.
             [Pid ! Message || Pid <- Pids],
@@ -133,7 +130,7 @@ waiting({ok, _ReqId, IndexNode, Reply},
 
             case NumResponses =:= ?N of
                 true ->
-                    {next_state, finalize, State#state{pids=Pids}, 0};
+                    {next_state, finalize, State, 0};
                 false ->
                     {next_state, waiting_n, State}
             end;
@@ -170,21 +167,23 @@ finalize(timeout, #state{replies=Replies}=State) ->
 %%%===================================================================
 
 %% @doc Perform merge of replicas.
-%%      Since we only ever listen, just merge the list.
 merge(Replies) ->
-    lists:usort(lists:flatmap(fun({_, Pids}) -> Pids end, Replies)).
+    lists:foldl(fun({_, Pids}, Acc) ->
+                    riak_dt_orset:merge(Pids, Acc)
+                    end, riak_dt_orset:new(), Replies).
 
 %% @doc Trigger repair if necessary.
-repair([{IndexNode, NodePids}|Replies],
-       #state{channel=Channel, pids=Pids}=State) ->
-    case lists:sort(NodePids) =:= lists:sort(Pids) of
+repair([{IndexNode, Pids}|Replies],
+       #state{channel=Channel, pids=MPids}=State) ->
+    case riak_dt_orset:equal(Pids, MPids) of
         false ->
-            riak_pubsub_subscribe_vnode:repair(IndexNode, Channel, Pids);
+            riak_pubsub_subscribe_vnode:repair(IndexNode, Channel, MPids);
         true ->
             ok
     end,
     repair(Replies, State);
 repair([], _State) -> ok.
 
+%% @doc Generate a request id.
 mk_reqid() ->
     erlang:phash2(erlang:now()).

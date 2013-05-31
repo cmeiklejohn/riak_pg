@@ -58,6 +58,8 @@ handle_command({publish, {ReqId, _}, Channel, _Message},
     end,
 
     {reply, {ok, ReqId, {Partition, Node}, Reply}, State};
+
+%% @doc Default handler.
 handle_command(Message, _Sender, State) ->
     ?PRINT({unhandled_command, Message}),
     {noreply, State}.

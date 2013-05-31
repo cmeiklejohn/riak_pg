@@ -45,25 +45,38 @@ subscribe(Preflist, Identity, Channel, Pid) ->
                                    riak_pubsub_subscribe_vnode_master).
 
 %% @doc Perform repair.
-repair(IndexNode, Channel, Pid) ->
+repair(IndexNode, Channel, Pids) ->
     riak_core_vnode_master:command(IndexNode,
-                                   {repair, Channel, Pid},
+                                   {repair, Channel, Pids},
                                    ignore,
                                    riak_pubsub_subscribe_vnode_master).
 
 %% @doc Perform subscription as part of repair.
-handle_command({repair, Channel, Pid},
+handle_command({repair, Channel, Pids},
                _Sender,
                #state{channels=Channels0, partition=Partition}=State) ->
     lager:warning("Received repair for ~p and ~p and ~p.\n",
-                  [Channel, Pid, Partition]),
+                  [Channel, Pids, Partition]),
 
-    case perform(Channels0, Partition, Channel, Pid) of
-        {error, _Error} ->
-            {noreply, State};
-        {ok, Channels} ->
-            {noreply, State#state{channels=Channels}}
-    end;
+    %% Generate key for gproc.
+    Key = {p, l, {riak_pubsub_subscription, Channel, Partition}},
+
+    %% Attempt to register the key if it hasn't been yet.
+    try
+        gproc:reg(Key, riak_dt_orset:new())
+    catch
+        _:_ ->
+            ok
+    end,
+
+    %% Store back into the dict.
+    Channels = dict:store(Channel, Pids, Channels0),
+
+    %% Save to gproc.
+    lager:warning("Setting pid in gproc to ~p", [Pids]),
+    gproc:set_value(Key, Pids),
+
+    {noreply, State#state{channels=Channels}};
 
 %% @doc Respond to a subscription; launch a child process,
 %%      and register it with gproc under a given channel name.
@@ -72,17 +85,15 @@ handle_command({subscribe, {ReqId, _}, Channel, Pid},
                #state{channels=Channels0, partition=Partition}=State) ->
     lager:warning("Received subscribe for ~p and ~p and ~p.\n",
                   [Channel, Pid, Partition]),
+    {ok, Channels} = perform(Channels0, Partition, Channel, Pid),
+    {reply, {ok, ReqId}, State#state{channels=Channels}};
 
-    case perform(Channels0, Partition, Channel, Pid) of
-        {error, Error} ->
-            {reply, {ok, ReqId, {error, Error}}, State};
-        {ok, Channels} ->
-            {reply, {ok, ReqId}, State#state{channels=Channels}}
-    end;
+%% @doc Default handler.
 handle_command(Message, _Sender, State) ->
     ?PRINT({unhandled_command, Message}),
     {noreply, State}.
 
+%% @doc Fold over the dict for handoff.
 handle_handoff_command(?FOLD_REQ{foldfun=Fun, acc0=Acc0}, _Sender, State) ->
     Acc = dict:fold(Fun, Acc0, State#state.channels),
     {reply, Acc, State}.
@@ -96,23 +107,22 @@ handoff_cancelled(State) ->
 handoff_finished(_TargetNode, State) ->
     {ok, State}.
 
+%% @doc Handle receiving data from handoff.  Decode data and
+%%      perform subscriptions.
 handle_handoff_data(Data, #state{channels=Channels0, partition=Partition}=State) ->
     {Channel, Pids} = binary_to_term(Data),
-
-    case perform(Channels0, Partition, Channel, Pids) of
-        {error, Error} ->
-            {reply, {error, Error}, State};
-        {ok, Channels} ->
-            {reply, ok, State#state{channels=Channels}}
-    end.
+    {ok, Channels} = perform(Channels0, Partition, Channel, Pids),
+    {reply, ok, State#state{channels=Channels}}.
 
 encode_handoff_item(Channel, Pids) ->
     term_to_binary({Channel, Pids}).
 
 is_empty(#state{channels=Channels}=State) ->
     case dict:size(Channels) of
-        0 -> {true, State};
-        _ -> {false, State}
+        0 ->
+            {true, State};
+        _ ->
+            {false, State}
     end.
 
 delete(State) ->
@@ -133,61 +143,39 @@ perform(Channels0, Partition, Channel, Pid) when is_pid(Pid) ->
     lager:warning("Starting subscription for ~p and ~p.\n",
                   [Channel, Pid]),
 
+    %% Generate key for gproc.
     Key = {p, l, {riak_pubsub_subscription, Channel, Partition}},
 
     %% Attempt to register the key if it hasn't been yet.
     try
-        gproc:reg(Key)
+        gproc:reg(Key, riak_dt_orset:new())
     catch
         _:_ ->
             ok
     end,
 
-    %% Spawn processes if necessary.
-    case already_spawned(Channels0, Channel, Pid) of
-        false ->
-            try
-                Channels = update_channels(Channels0, Pid, Channel),
+    %% Find existing list of Pids, and add object to it.
+    Pids0 = case dict:find(Channel, Channels0) of
+        {ok, Object} ->
+            Object;
+        _ ->
+            riak_dt_orset:new()
+    end,
+    Pids = riak_dt_orset:update({add, Pid}, Partition, Pids0),
 
-                %% Get updated list of mappings.
-                {ok, Pids} = dict:find(Channel, Channels),
+    %% Store back into the dict.
+    Channels = dict:store(Channel, Pids, Channels0),
 
-                %% Update gproc with the new set of pids.
-                true = gproc:set_value(Key, Pids),
+    %% Save to gproc.
+    lager:warning("Setting pid in gproc to ~p", [Pids]),
+    gproc:set_value(Key, Pids),
 
-                {ok, Channels}
-            catch
-                _:_ ->
-                    {error, registration_failed}
-            end;
-        true ->
-            {ok, Channels0}
-    end;
+    %% Return updated channels.
+    {ok, Channels};
+
+%% @doc Subscribe to a channel for a series of processes.
 perform(Channels0, Partition, Channel, Pids0) when is_list(Pids0) ->
     Channels1 = lists:foldl(fun(Pid, Channels) ->
-                case perform(Channels, Partition, Channel, Pid) of
-                    {error, _} ->
-                        Channels;
-                    {ok, Channels1} ->
-                        Channels1
-                end
-        end, Channels0, Pids0),
+        {ok, Channels1} = perform(Channels, Partition, Channel, Pid),
+        Channels1 end, Channels0, Pids0),
     {ok, Channels1}.
-
-%% @doc Determine if we've already spawned a process for this.
-already_spawned(Channels, Channel, Pid) ->
-    case dict:find(Channel, Channels) of
-        {ok, Pids} ->
-            lists:member(Pid, Pids);
-        _ ->
-            false
-    end.
-
-%% @doc Update channels listing with new channel/pid mapping.
-update_channels(Channels, Pid, Channel) ->
-    try
-         dict:append_list(Channel, [Pid], Channels)
-    catch
-         _:_ ->
-             dict:store(Channel, [Pid], Channels)
-    end.

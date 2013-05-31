@@ -52,7 +52,7 @@ test(Channel, Message) ->
         {error, timeout} ->
             false;
         _ ->
-            ok = riak_pubsub:publish(Channel, Message),
+            {ok, _} = riak_pubsub:publish(Channel, Message),
             ok = flush(),
             ok = riak_pubsub:unsubscribe(Channel, Pid),
             true

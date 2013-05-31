@@ -120,13 +120,9 @@ waiting({ok, _ReqId, IndexNode, Reply},
 
     case NumResponses =:= ?R of
         true ->
-            Pids = riak_dt_orset:value(merge(Replies)),
-
-            %% Publish to all subscribers.
-            [Pid ! Message || Pid <- Pids],
-
-            %% Return OK response.
-            From ! {ReqId, ok},
+            Pids = propagate(Message,
+                             riak_dt_orset:value(merge(Replies))),
+            From ! {ReqId, ok, Pids},
 
             case NumResponses =:= ?N of
                 true ->
@@ -158,8 +154,7 @@ waiting_n({ok, _ReqId, IndexNode, Reply},
 %% @doc Perform read repair.
 finalize(timeout, #state{replies=Replies}=State) ->
     lager:warning("Finalize entered with ~p\n", [Replies]),
-    Pids = merge(Replies),
-    ok = repair(Replies, State#state{pids=Pids}),
+    ok = repair(Replies, State#state{pids=merge(Replies)}),
     {stop, normal, State}.
 
 %%%===================================================================
@@ -171,6 +166,13 @@ merge(Replies) ->
     lists:foldl(fun({_, Pids}, Acc) ->
                     riak_dt_orset:merge(Pids, Acc)
                     end, riak_dt_orset:new(), Replies).
+
+%% @doc Propagate messages to subscribers.
+propagate(Message, Pids) ->
+    lager:warning("Propagate called with ~p and ~p.\n",
+                  [Message, Pids]),
+    [Pid ! Message || Pid <- Pids],
+    Pids.
 
 %% @doc Trigger repair if necessary.
 repair([{IndexNode, Pids}|Replies],

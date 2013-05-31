@@ -163,9 +163,8 @@ finalize(timeout, #state{replies=Replies}=State) ->
 
 %% @doc Perform merge of replicas.
 merge(Replies) ->
-    lists:foldl(fun({_, Pids}, Acc) ->
-                    riak_dt_orset:merge(Pids, Acc)
-                    end, riak_dt_orset:new(), Replies).
+    lists:foldl(fun({_, Pids}, Acc) -> riak_dt_orset:merge(Pids, Acc) end,
+                riak_dt_orset:new(), Replies).
 
 %% @doc Propagate messages to subscribers.
 propagate(Message, Pids) ->

@@ -70,20 +70,11 @@ handle_command({repair, Channel, Pids},
     %% Generate key for gproc.
     Key = riak_pubsub_gproc:key(Channel, Partition),
 
-    %% Attempt to register the key if it hasn't been yet.
-    try
-        gproc:reg(Key, riak_dt_orset:new())
-    catch
-        _:_ ->
-            ok
-    end,
-
     %% Store back into the dict.
     Channels = dict:store(Channel, Pids, Channels0),
 
     %% Save to gproc.
-    lager:warning("Setting pid in gproc to ~p", [Pids]),
-    gproc:set_value(Key, Pids),
+    ok = riak_pubsub_gproc:store(Key, Pids),
 
     {noreply, State#state{channels=Channels}};
 
@@ -93,7 +84,21 @@ handle_command({subscribe, {ReqId, _}, Channel, Pid},
                #state{channels=Channels0, partition=Partition}=State) ->
     lager:warning("Received subscribe for ~p and ~p and ~p.\n",
                   [Channel, Pid, Partition]),
-    {ok, Channels} = perform(Channels0, Partition, Channel, Pid),
+
+    %% Generate key for gproc.
+    Key = riak_pubsub_gproc:key(Channel, Partition),
+
+    %% Find existing list of Pids, and add object to it.
+    Pids0 = pids(Channels0, Channel, riak_dt_orset:new()),
+    Pids = riak_dt_orset:update({add, Pid}, Partition, Pids0),
+
+    %% Store back into the dict.
+    Channels = dict:store(Channel, Pids, Channels0),
+
+    %% Save to gproc.
+    ok = riak_pubsub_gproc:store(Key, Pids),
+
+    %% Return updated channels.
     {reply, {ok, ReqId}, State#state{channels=Channels}};
 
 %% @doc Respond to a unsubscription request.
@@ -106,29 +111,15 @@ handle_command({unsubscribe, {ReqId, _}, Channel, Pid},
     %% Generate key for gproc.
     Key = riak_pubsub_gproc:key(Channel, Partition),
 
-    %% Attempt to register the key if it hasn't been yet.
-    try
-        gproc:reg(Key, riak_dt_orset:new())
-    catch
-        _:_ ->
-            ok
-    end,
-
     %% Find existing list of Pids, and add object to it.
-    Pids0 = case dict:find(Channel, Channels0) of
-        {ok, Object} ->
-            Object;
-        _ ->
-            riak_dt_orset:new()
-    end,
+    Pids0 = pids(Channels0, Channel, riak_dt_orset:new()),
     Pids = riak_dt_orset:update({remove, Pid}, Partition, Pids0),
 
     %% Store back into the dict.
     Channels = dict:store(Channel, Pids, Channels0),
 
     %% Save to gproc.
-    lager:warning("Setting pid in gproc to ~p", [Pids]),
-    gproc:set_value(Key, Pids),
+    ok = riak_pubsub_gproc:store(Key, Pids),
 
     {reply, {ok, ReqId}, State#state{channels=Channels}};
 
@@ -153,9 +144,23 @@ handoff_finished(_TargetNode, State) ->
 
 %% @doc Handle receiving data from handoff.  Decode data and
 %%      perform subscriptions.
-handle_handoff_data(Data, #state{channels=Channels0, partition=Partition}=State) ->
+handle_handoff_data(Data,
+                    #state{channels=Channels0, partition=Partition}=State) ->
     {Channel, Pids} = binary_to_term(Data),
-    {ok, Channels} = perform(Channels0, Partition, Channel, Pids),
+
+    %% Generate key for gproc.
+    Key = riak_pubsub_gproc:key(Channel, Partition),
+
+    %% Find existing list of Pids, and add object to it.
+    Pids0 = pids(Channels0, Channel, riak_dt_orset:new()),
+    MPids = riak_dt_orset:merge(Pids, Pids0),
+
+    %% Store back into the dict.
+    Channels = dict:store(Channel, MPids, Channels0),
+
+    %% Save to gproc.
+    ok = riak_pubsub_gproc:store(Key, MPids),
+
     {reply, ok, State#state{channels=Channels}}.
 
 encode_handoff_item(Channel, Pids) ->
@@ -181,38 +186,16 @@ handle_exit(_Pid, _Reason, State) ->
 terminate(_Reason, _State) ->
     ok.
 
-%% @doc Subscribe to a channel with a given pid, and return an
-%%      updated dict of channel to pid mappings.
-perform(Channels0, Partition, Channel, Pid) when is_pid(Pid) ->
-    lager:warning("Starting subscription for ~p and ~p.\n",
-                  [Channel, Pid]),
+%%%===================================================================
+%%% Internal Functions
+%%%===================================================================
 
-    %% Generate key for gproc.
-    Key = riak_pubsub_gproc:key(Channel, Partition),
-
-    %% Attempt to register the key if it hasn't been yet.
-    try
-        gproc:reg(Key, riak_dt_orset:new())
-    catch
-        _:_ ->
-            ok
-    end,
-
-    %% Find existing list of Pids, and add object to it.
-    Pids0 = case dict:find(Channel, Channels0) of
+%% @doc Return pids from the dict.
+-spec pids(dict(), atom(), term()) -> term().
+pids(Channels, Channel, Default) ->
+    case dict:find(Channel, Channels) of
         {ok, Object} ->
             Object;
         _ ->
-            riak_dt_orset:new()
-    end,
-    Pids = riak_dt_orset:update({add, Pid}, Partition, Pids0),
-
-    %% Store back into the dict.
-    Channels = dict:store(Channel, Pids, Channels0),
-
-    %% Save to gproc.
-    lager:warning("Setting pid in gproc to ~p", [Pids]),
-    gproc:set_value(Key, Pids),
-
-    %% Return updated channels.
-    {ok, Channels}.
+            Default
+    end.

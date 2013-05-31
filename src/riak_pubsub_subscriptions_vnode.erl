@@ -215,11 +215,4 @@ perform(Channels0, Partition, Channel, Pid) when is_pid(Pid) ->
     gproc:set_value(Key, Pids),
 
     %% Return updated channels.
-    {ok, Channels};
-
-%% @doc Subscribe to a channel for a series of processes.
-perform(Channels0, Partition, Channel, Pids0) when is_list(Pids0) ->
-    Channels1 = lists:foldl(fun(Pid, Channels) ->
-        {ok, Channels1} = perform(Channels, Partition, Channel, Pid),
-        Channels1 end, Channels0, Pids0),
-    {ok, Channels1}.
+    {ok, Channels}.

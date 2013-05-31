@@ -1,8 +1,8 @@
 %% @author Christopher Meiklejohn <christopher.meiklejohn@gmail.com>
 %% @copyright 2013 Christopher Meiklejohn.
-%% @doc Supervisor for the subscription requests.
+%% @doc Supervisor for the unsubscription requests.
 
--module(riak_pubsub_subscribe_fsm_sup).
+-module(riak_pubsub_unsubscribe_fsm_sup).
 -author('Christopher Meiklejohn <christopher.meiklejohn@gmail.com>').
 
 -behaviour(supervisor).
@@ -37,8 +37,8 @@ terminate_child(Supervisor, Pid) ->
 
 %% @doc supervisor callback.
 init([]) ->
-    SubscribeFSM = {riak_pubsub_subscribe_fsm,
-                    {riak_pubsub_subscribe_fsm, start_link, []},
-                     temporary, 5000, worker, [riak_pubsub_subscribe_fsm]},
+    UnsubscribeFSM = {riak_pubsub_unsubscribe_fsm,
+                      {riak_pubsub_unsubscribe_fsm, start_link, []},
+                       temporary, 5000, worker, [riak_pubsub_unsubscribe_fsm]},
 
-    {ok, {{simple_one_for_one, 10, 10}, [SubscribeFSM]}}.
+    {ok, {{simple_one_for_one, 10, 10}, [UnsubscribeFSM]}}.

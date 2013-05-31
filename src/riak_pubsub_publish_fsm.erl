@@ -90,7 +90,7 @@ init([ReqId, From, Channel, Message]) ->
 %% @doc Prepare request by retrieving the preflist.
 prepare(timeout, #state{channel=Channel}=State) ->
     DocIdx = riak_core_util:chash_key({<<"subscriptions">>, Channel}),
-    Preflist = riak_core_apl:get_apl(DocIdx, ?N, riak_pubsub_publish),
+    Preflist = riak_core_apl:get_apl(DocIdx, ?N, riak_pubsub_publications),
     {next_state, execute, State#state{preflist=Preflist}, 0}.
 
 %% @doc Execute the request.
@@ -99,9 +99,9 @@ execute(timeout, #state{preflist=Preflist,
                         coordinator=Coordinator,
                         channel=Channel,
                         message=Message}=State) ->
-    riak_pubsub_publish_vnode:publish(Preflist,
-                                      {ReqId, Coordinator},
-                                      Channel, Message),
+    riak_pubsub_publications_vnode:publish(Preflist,
+                                           {ReqId, Coordinator},
+                                           Channel, Message),
     {next_state, waiting, State}.
 
 %% @doc Pull a unique list of subscriptions from replicas, and
@@ -177,7 +177,7 @@ repair([{IndexNode, Pids}|Replies],
        #state{channel=Channel, pids=MPids}=State) ->
     case riak_dt_orset:equal(Pids, MPids) of
         false ->
-            riak_pubsub_subscribe_vnode:repair(IndexNode, Channel, MPids);
+            riak_pubsub_subscriptions_vnode:repair(IndexNode, Channel, MPids);
         true ->
             ok
     end,

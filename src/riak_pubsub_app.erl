@@ -22,13 +22,13 @@ start(_StartType, _StartArgs) ->
                                     [{vnode_module, riak_pubsub_vnode}]),
             ok = riak_core_node_watcher:service_up(riak_pubsub, self()),
 
-            ok = riak_core:register(riak_pubsub_publish,
-                                    [{vnode_module, riak_pubsub_publish_vnode}]),
-            ok = riak_core_node_watcher:service_up(riak_pubsub_publish, self()),
+            ok = riak_core:register(riak_pubsub_publications,
+                                    [{vnode_module, riak_pubsub_publications_vnode}]),
+            ok = riak_core_node_watcher:service_up(riak_pubsub_publications, self()),
 
-            ok = riak_core:register(riak_pubsub_subscribe,
-                                    [{vnode_module, riak_pubsub_subscribe_vnode}]),
-            ok = riak_core_node_watcher:service_up(riak_pubsub_subscribe, self()),
+            ok = riak_core:register(riak_pubsub_subscriptions,
+                                    [{vnode_module, riak_pubsub_subscriptions_vnode}]),
+            ok = riak_core_node_watcher:service_up(riak_pubsub_subscriptions, self()),
 
             ok = riak_core_ring_events:add_guarded_handler(
                     riak_pubsub_ring_event_handler, []),

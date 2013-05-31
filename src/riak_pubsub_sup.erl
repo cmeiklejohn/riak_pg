@@ -29,13 +29,13 @@ init(_Args) ->
                {riak_core_vnode_master, start_link, [riak_pubsub_vnode]},
                 permanent, 5000, worker, [riak_core_vnode_master]},
 
-    Publish = {riak_pubsub_publish_vnode_master,
-               {riak_core_vnode_master, start_link, [riak_pubsub_publish_vnode]},
-                permanent, 5000, worker, [riak_core_vnode_master]},
+    Publications = {riak_pubsub_publications_vnode_master,
+                    {riak_core_vnode_master, start_link, [riak_pubsub_publications_vnode]},
+                     permanent, 5000, worker, [riak_core_vnode_master]},
 
-    Subscribe = {riak_pubsub_subscribe_vnode_master,
-                 {riak_core_vnode_master, start_link, [riak_pubsub_subscribe_vnode]},
-                  permanent, 5000, worker, [riak_core_vnode_master]},
+    Subscriptions = {riak_pubsub_subscriptions_vnode_master,
+                     {riak_core_vnode_master, start_link, [riak_pubsub_subscriptions_vnode]},
+                      permanent, 5000, worker, [riak_core_vnode_master]},
 
     PublishFSM = {riak_pubsub_publish_fsm_sup,
                   {riak_pubsub_publish_fsm_sup, start_link, []},
@@ -45,8 +45,13 @@ init(_Args) ->
                     {riak_pubsub_subscribe_fsm_sup, start_link, []},
                      permanent, infinity, supervisor, [riak_pubsub_subscribe_fsm_sup]},
 
+    UnsubscribeFSM = {riak_pubsub_unsubscribe_fsm_sup,
+                    {riak_pubsub_unsubscribe_fsm_sup, start_link, []},
+                     permanent, infinity, supervisor, [riak_pubsub_unsubscribe_fsm_sup]},
+
     {ok, {{one_for_one, 5, 10}, [VMaster,
-                                 Publish,
-                                 Subscribe,
+                                 Publications,
+                                 Subscriptions,
                                  PublishFSM,
-                                 SubscribeFSM]}}.
+                                 SubscribeFSM,
+                                 UnsubscribeFSM]}}.

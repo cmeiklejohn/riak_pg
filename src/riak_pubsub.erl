@@ -12,7 +12,8 @@
 
 -export([ping/0,
          publish/2,
-         subscribe/2]).
+         subscribe/2,
+         unsubscribe/2]).
 
 -export([test/2]).
 
@@ -28,6 +29,11 @@ subscribe(Channel, Pid) ->
     {ok, ReqId} = riak_pubsub_subscribe_fsm:subscribe(Channel, Pid),
     wait_for_reqid(ReqId, ?TIMEOUT).
 
+%% @doc Subscribe to updates on a given channel.
+unsubscribe(Channel, Pid) ->
+    {ok, ReqId} = riak_pubsub_unsubscribe_fsm:unsubscribe(Channel, Pid),
+    wait_for_reqid(ReqId, ?TIMEOUT).
+
 %% @doc Pings a random vnode to make sure communication is functional.
 ping() ->
     DocIdx = riak_core_util:chash_key({<<"ping">>,
@@ -40,12 +46,15 @@ ping() ->
 
 %% @doc Test a round trip.
 test(Channel, Message) ->
-    case riak_pubsub:subscribe(Channel, self()) of
+    Pid = self(),
+
+    case riak_pubsub:subscribe(Channel, Pid) of
         {error, timeout} ->
             false;
         _ ->
             ok = riak_pubsub:publish(Channel, Message),
             ok = flush(),
+            ok = riak_pubsub:unsubscribe(Channel, Pid),
             true
     end.
 

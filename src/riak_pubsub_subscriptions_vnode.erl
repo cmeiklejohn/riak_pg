@@ -2,7 +2,7 @@
 %% @copyright 2013 Christopher Meiklejohn.
 %% @doc Subscribe vnode.
 
--module(riak_pubsub_subscribe_vnode).
+-module(riak_pubsub_subscriptions_vnode).
 -author('Christopher Meiklejohn <christopher.meiklejohn@gmail.com>').
 
 -behaviour(riak_core_vnode).
@@ -26,7 +26,9 @@
          handle_exit/3]).
 
 -export([subscribe/4,
-         repair/3]).
+         unsubscribe/4]).
+
+-export([repair/3]).
 
 -record(state, {partition, channels}).
 
@@ -42,14 +44,21 @@ subscribe(Preflist, Identity, Channel, Pid) ->
     riak_core_vnode_master:command(Preflist,
                                    {subscribe, Identity, Channel, Pid},
                                    {fsm, undefined, self()},
-                                   riak_pubsub_subscribe_vnode_master).
+                                   riak_pubsub_subscriptions_vnode_master).
+
+%% @doc Unsubscribe to a channel.
+unsubscribe(Preflist, Identity, Channel, Pid) ->
+    riak_core_vnode_master:command(Preflist,
+                                   {unsubscribe, Identity, Channel, Pid},
+                                   {fsm, undefined, self()},
+                                   riak_pubsub_subscriptions_vnode_master).
 
 %% @doc Perform repair.
 repair(IndexNode, Channel, Pids) ->
     riak_core_vnode_master:command(IndexNode,
                                    {repair, Channel, Pids},
                                    ignore,
-                                   riak_pubsub_subscribe_vnode_master).
+                                   riak_pubsub_subscriptions_vnode_master).
 
 %% @doc Perform subscription as part of repair.
 handle_command({repair, Channel, Pids},
@@ -78,14 +87,49 @@ handle_command({repair, Channel, Pids},
 
     {noreply, State#state{channels=Channels}};
 
-%% @doc Respond to a subscription; launch a child process,
-%%      and register it with gproc under a given channel name.
+%% @doc Respond to a subscription request.
 handle_command({subscribe, {ReqId, _}, Channel, Pid},
                _Sender,
                #state{channels=Channels0, partition=Partition}=State) ->
     lager:warning("Received subscribe for ~p and ~p and ~p.\n",
                   [Channel, Pid, Partition]),
     {ok, Channels} = perform(Channels0, Partition, Channel, Pid),
+    {reply, {ok, ReqId}, State#state{channels=Channels}};
+
+%% @doc Respond to a unsubscription request.
+handle_command({unsubscribe, {ReqId, _}, Channel, Pid},
+               _Sender,
+               #state{channels=Channels0, partition=Partition}=State) ->
+    lager:warning("Received unsubscribe for ~p and ~p and ~p.\n",
+                  [Channel, Pid, Partition]),
+
+    %% Generate key for gproc.
+    Key = {p, l, {riak_pubsub_subscription, Channel, Partition}},
+
+    %% Attempt to register the key if it hasn't been yet.
+    try
+        gproc:reg(Key, riak_dt_orset:new())
+    catch
+        _:_ ->
+            ok
+    end,
+
+    %% Find existing list of Pids, and add object to it.
+    Pids0 = case dict:find(Channel, Channels0) of
+        {ok, Object} ->
+            Object;
+        _ ->
+            riak_dt_orset:new()
+    end,
+    Pids = riak_dt_orset:update({remove, Pid}, Partition, Pids0),
+
+    %% Store back into the dict.
+    Channels = dict:store(Channel, Pids, Channels0),
+
+    %% Save to gproc.
+    lager:warning("Setting pid in gproc to ~p", [Pids]),
+    gproc:set_value(Key, Pids),
+
     {reply, {ok, ReqId}, State#state{channels=Channels}};
 
 %% @doc Default handler.

@@ -1,8 +1,8 @@
 %% @author Christopher Meiklejohn <christopher.meiklejohn@gmail.com>
 %% @copyright 2013 Christopher Meiklejohn.
-%% @doc Subscribe FSM.
+%% @doc Unsubscribe FSM.
 
--module(riak_pubsub_subscribe_fsm).
+-module(riak_pubsub_unsubscribe_fsm).
 -author('Christopher Meiklejohn <christopher.meiklejohn@gmail.com>').
 
 -behaviour(gen_fsm).
@@ -11,7 +11,7 @@
 
 %% API
 -export([start_link/4,
-         subscribe/2]).
+         unsubscribe/2]).
 
 %% Callbacks
 -export([init/1,
@@ -41,9 +41,9 @@
 start_link(ReqId, From, Channel, Pid) ->
     gen_fsm:start_link(?MODULE, [ReqId, From, Channel, Pid], []).
 
-subscribe(Channel, Pid) ->
+unsubscribe(Channel, Pid) ->
     ReqId = mk_reqid(),
-    riak_pubsub_subscribe_fsm_sup:start_child(
+    riak_pubsub_unsubscribe_fsm_sup:start_child(
         [ReqId, self(), Channel, Pid]),
     {ok, ReqId}.
 
@@ -93,9 +93,9 @@ execute(timeout, #state{preflist=Preflist,
                         coordinator=Coordinator,
                         channel=Channel,
                         pid=Pid}=State) ->
-    riak_pubsub_subscriptions_vnode:subscribe(Preflist,
-                                              {ReqId, Coordinator},
-                                              Channel, Pid),
+    riak_pubsub_subscriptions_vnode:unsubscribe(Preflist,
+                                                {ReqId, Coordinator},
+                                                Channel, Pid),
     {next_state, waiting, State}.
 
 %% @doc Attempt to write to every single node responsible for this

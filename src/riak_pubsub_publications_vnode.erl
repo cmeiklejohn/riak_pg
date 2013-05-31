@@ -2,7 +2,7 @@
 %% @copyright 2013 Christopher Meiklejohn.
 %% @doc Publish vnode.
 
--module(riak_pubsub_publish_vnode).
+-module(riak_pubsub_publications_vnode).
 -author('Christopher Meiklejohn <christopher.meiklejohn@gmail.com>').
 
 -behaviour(riak_core_vnode).
@@ -41,7 +41,7 @@ publish(Preflist, Identity, Channel, Message) ->
         Preflist,
         {publish, Identity, Channel, Message},
         {fsm, undefined, self()},
-        riak_pubsub_publish_vnode_master).
+        riak_pubsub_publications_vnode_master).
 
 %% @doc When receiving a message, find all globally
 %%      registered listeners for the message and perform the relay.

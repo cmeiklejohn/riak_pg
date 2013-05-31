@@ -49,7 +49,7 @@ handle_command({publish, {ReqId, _}, Channel, _Message},
                _Sender,
                #state{partition=Partition, node=Node}=State) ->
     Reply = try
-        Key = {p, l, {riak_pubsub_subscription, Channel, Partition}},
+        Key = riak_pubsub_gproc:key(Channel, Partition),
         [{_Pid, Pids}] = gproc:lookup_values(Key),
         Pids
     catch

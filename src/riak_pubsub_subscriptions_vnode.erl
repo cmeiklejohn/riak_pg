@@ -68,7 +68,7 @@ handle_command({repair, Channel, Pids},
                   [Channel, Pids, Partition]),
 
     %% Generate key for gproc.
-    Key = {p, l, {riak_pubsub_subscription, Channel, Partition}},
+    Key = riak_pubsub_gproc:key(Channel, Partition),
 
     %% Attempt to register the key if it hasn't been yet.
     try
@@ -104,7 +104,7 @@ handle_command({unsubscribe, {ReqId, _}, Channel, Pid},
                   [Channel, Pid, Partition]),
 
     %% Generate key for gproc.
-    Key = {p, l, {riak_pubsub_subscription, Channel, Partition}},
+    Key = riak_pubsub_gproc:key(Channel, Partition),
 
     %% Attempt to register the key if it hasn't been yet.
     try
@@ -188,7 +188,7 @@ perform(Channels0, Partition, Channel, Pid) when is_pid(Pid) ->
                   [Channel, Pid]),
 
     %% Generate key for gproc.
-    Key = {p, l, {riak_pubsub_subscription, Channel, Partition}},
+    Key = riak_pubsub_gproc:key(Channel, Partition),
 
     %% Attempt to register the key if it hasn't been yet.
     try

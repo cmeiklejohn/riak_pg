@@ -15,6 +15,9 @@
          subscribe/2,
          unsubscribe/2]).
 
+-export([mk_reqid/0,
+         wait_for_reqid/2]).
+
 %% Public API
 
 %% @doc Publish updates on a given channel.
@@ -46,6 +49,10 @@ ping() ->
 %%%===================================================================
 %%% Internal Functions
 %%%===================================================================
+
+%% @doc Generate a request id.
+mk_reqid() ->
+    erlang:phash2(erlang:now()).
 
 %% @doc Wait for a response.
 wait_for_reqid(ReqID, Timeout) ->

@@ -46,7 +46,7 @@ start_link(ReqId, From, Channel, Message) ->
     gen_fsm:start_link(?MODULE, [ReqId, From, Channel, Message], []).
 
 publish(Channel, Message) ->
-    ReqId = mk_reqid(),
+    ReqId = riak_pubsub:mk_reqid(),
     riak_pubsub_publish_fsm_sup:start_child(
         [ReqId, self(), Channel, Message]),
     {ok, ReqId}.
@@ -90,8 +90,10 @@ init([ReqId, From, Channel, Message]) ->
 %% @doc Prepare request by retrieving the preflist.
 prepare(timeout, #state{channel=Channel}=State) ->
     DocIdx = riak_core_util:chash_key({<<"subscriptions">>, Channel}),
-    Preflist = riak_core_apl:get_apl(DocIdx, ?N, riak_pubsub_publications),
-    {next_state, execute, State#state{preflist=Preflist}, 0}.
+    Preflist = riak_core_apl:get_primary_apl(DocIdx, ?N,
+                                             riak_pubsub_publications),
+    Preflist2 = [{Index, Node} || {{Index, Node}, _Type} <- Preflist],
+    {next_state, execute, State#state{preflist=Preflist2}, 0}.
 
 %% @doc Execute the request.
 execute(timeout, #state{preflist=Preflist,
@@ -184,7 +186,3 @@ repair([{IndexNode, Pids}|Replies],
     end,
     repair(Replies, State);
 repair([], _State) -> ok.
-
-%% @doc Generate a request id.
-mk_reqid() ->
-    erlang:phash2(erlang:now()).

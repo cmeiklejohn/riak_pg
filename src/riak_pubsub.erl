@@ -15,8 +15,6 @@
          subscribe/2,
          unsubscribe/2]).
 
--export([test/2]).
-
 %% Public API
 
 %% @doc Publish updates on a given channel.
@@ -44,35 +42,10 @@ ping() ->
                                               ping,
                                               riak_pubsub_vnode_master).
 
-%% @doc Test a round trip.
-test(Channel, Message) ->
-    Pid = self(),
-
-    case riak_pubsub:subscribe(Channel, Pid) of
-        {error, timeout} ->
-            false;
-        _ ->
-            {ok, _} = riak_pubsub:publish(Channel, Message),
-            ok = flush(),
-            ok = riak_pubsub:unsubscribe(Channel, Pid),
-            true
-    end.
 
 %%%===================================================================
 %%% Internal Functions
 %%%===================================================================
-
-%% @doc Flush the message queue immediately.
--spec flush() -> ok.
-flush() ->
-    receive
-        Result ->
-            lager:warning("Received: ~p", [Result]),
-            flush()
-    after
-        0 ->
-            ok
-    end.
 
 %% @doc Wait for a response.
 wait_for_reqid(ReqID, Timeout) ->

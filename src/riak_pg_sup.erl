@@ -53,10 +53,20 @@ init(_Args) ->
                 {riak_pg_leave_fsm_sup, start_link, []},
                  permanent, infinity, supervisor, [riak_pg_leave_fsm_sup]},
 
+    MembersFSM = {riak_pg_members_fsm_sup,
+                  {riak_pg_members_fsm_sup, start_link, []},
+                   permanent, infinity, supervisor, [riak_pg_members_fsm_sup]},
+
+    LocalMembersFSM = {riak_pg_local_members_fsm_sup,
+                       {riak_pg_local_members_fsm_sup, start_link, []},
+                        permanent, infinity, supervisor, [riak_pg_local_members_fsm_sup]},
+
     {ok, {{one_for_one, 5, 10}, [VMaster,
                                  MessageProxy,
                                  Messaging,
                                  Memberships,
                                  SendFSM,
                                  JoinFSM,
-                                 LeaveFSM]}}.
+                                 LeaveFSM,
+                                 MembersFSM,
+                                 LocalMembersFSM]}}.

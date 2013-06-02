@@ -114,8 +114,6 @@ waiting({ok, _ReqId, IndexNode, Reply},
                message=Message,
                num_responses=NumResponses0,
                replies=Replies0}=State0) ->
-    lager:warning("Received reply: ~p\n", [Reply]),
-
     NumResponses = NumResponses0 + 1,
     Replies = [{IndexNode, Reply}|Replies0],
     State = State0#state{num_responses=NumResponses, replies=Replies},
@@ -140,8 +138,6 @@ waiting({ok, _ReqId, IndexNode, Reply},
 waiting_n({ok, _ReqId, IndexNode, Reply},
         #state{num_responses=NumResponses0,
                replies=Replies0}=State0) ->
-    lager:warning("Received waiting_n reply: ~p\n", [Reply]),
-
     NumResponses = NumResponses0 + 1,
     Replies = [{IndexNode, Reply}|Replies0],
     State = State0#state{num_responses=NumResponses, replies=Replies},
@@ -155,7 +151,6 @@ waiting_n({ok, _ReqId, IndexNode, Reply},
 
 %% @doc Perform read repair.
 finalize(timeout, #state{replies=Replies}=State) ->
-    lager:warning("Finalize entered with ~p\n", [Replies]),
     ok = repair(Replies, State#state{pids=merge(Replies)}),
     {stop, normal, State}.
 

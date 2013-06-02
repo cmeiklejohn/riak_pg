@@ -64,9 +64,6 @@ repair(IndexNode, Channel, Pids) ->
 handle_command({repair, Channel, Pids},
                _Sender,
                #state{channels=Channels0, partition=Partition}=State) ->
-    lager:warning("Received repair for ~p and ~p and ~p.\n",
-                  [Channel, Pids, Partition]),
-
     %% Generate key for gproc.
     Key = riak_pubsub_gproc:key(Channel, Partition),
 
@@ -82,9 +79,6 @@ handle_command({repair, Channel, Pids},
 handle_command({subscribe, {ReqId, _}, Channel, Pid},
                _Sender,
                #state{channels=Channels0, partition=Partition}=State) ->
-    lager:warning("Received subscribe for ~p and ~p and ~p.\n",
-                  [Channel, Pid, Partition]),
-
     %% Generate key for gproc.
     Key = riak_pubsub_gproc:key(Channel, Partition),
 
@@ -105,9 +99,6 @@ handle_command({subscribe, {ReqId, _}, Channel, Pid},
 handle_command({unsubscribe, {ReqId, _}, Channel, Pid},
                _Sender,
                #state{channels=Channels0, partition=Partition}=State) ->
-    lager:warning("Received unsubscribe for ~p and ~p and ~p.\n",
-                  [Channel, Pid, Partition]),
-
     %% Generate key for gproc.
     Key = riak_pubsub_gproc:key(Channel, Partition),
 

@@ -18,8 +18,6 @@ key(Channel, Partition) ->
 %% @doc Store a value in gproc.
 -spec store(gproc:key(), term()) -> ok.
 store(Key, Value) ->
-    lager:warning("Storing in gproc: ~p ~p.\n", [Key, Value]),
-
     try
         true = gproc:set_value(Key, Value),
         ok

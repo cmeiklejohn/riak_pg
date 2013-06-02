@@ -1,0 +1,34 @@
+{application, ssl,
+   [{description, "Erlang/OTP SSL application"},
+    {vsn, "5.1.1"},
+    {modules, [ssl,
+	       ssl_app,
+	       ssl_sup,
+	       inet_tls_dist,
+	       ssl_tls_dist_proxy,
+	       ssl_dist_sup,
+	       ssl_tls1,
+	       ssl_ssl3,
+	       ssl_ssl2,
+	       ssl_session,
+	       ssl_session_cache_api,
+	       ssl_session_cache,
+	       ssl_record,
+	       ssl_manager,
+	       ssl_handshake,
+	       ssl_debug,
+	       ssl_connection_sup,
+	       ssl_connection,
+	       ssl_cipher,
+	       ssl_certificate_db,
+	       ssl_certificate,
+	       ssl_alert
+	       ]},
+    {registered, [ssl_sup, ssl_manager]},
+    {applications, [crypto, public_key, kernel, stdlib]},
+    {env, []},
+    {mod, {ssl_app, []}}]}.
+
+
+
+

@@ -1,0 +1,14 @@
+%% -*- erlang -*-
+{application, riak_pg,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [kernel,
+                  stdlib,
+                  gproc,
+                  sasl,
+                  riak_core]},
+  {mod, {riak_pg_app, []}},
+  {env, []}
+ ]}.

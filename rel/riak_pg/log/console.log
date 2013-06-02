@@ -1,0 +1,16 @@
+2013-06-02 00:00:01.763 [info] <0.7.0> Application lager started on node 'riak_pg@127.0.0.1'
+2013-06-02 00:00:01.768 [info] <0.7.0> Application crypto started on node 'riak_pg@127.0.0.1'
+2013-06-02 00:00:01.782 [info] <0.7.0> Application riak_sysmon started on node 'riak_pg@127.0.0.1'
+2013-06-02 00:00:01.806 [info] <0.7.0> Application inets started on node 'riak_pg@127.0.0.1'
+2013-06-02 00:00:01.816 [info] <0.7.0> Application mochiweb started on node 'riak_pg@127.0.0.1'
+2013-06-02 00:00:01.836 [info] <0.7.0> Application webmachine started on node 'riak_pg@127.0.0.1'
+2013-06-02 00:00:01.853 [info] <0.7.0> Application os_mon started on node 'riak_pg@127.0.0.1'
+2013-06-02 00:00:01.861 [info] <0.42.0> alarm_handler: {set,{{disk_almost_full,"54369532"},[]}}
+2013-06-02 00:00:01.863 [info] <0.42.0> alarm_handler: {set,{system_memory_high_watermark,[]}}
+2013-06-02 00:00:01.951 [warning] <0.124.0>@riak_core_ring_manager:reload_ring:347 No ring file available.
+2013-06-02 00:00:02.225 [info] <0.131.0>@riak_core_capability:process_capability_changes:530 New capability: {riak_core,vnode_routing} = proxy
+2013-06-02 00:00:02.246 [info] <0.131.0>@riak_core_capability:process_capability_changes:530 New capability: {riak_core,staged_joins} = true
+2013-06-02 00:00:02.264 [info] <0.131.0>@riak_core_capability:process_capability_changes:530 New capability: {riak_core,resizable_ring} = true
+2013-06-02 00:00:02.275 [info] <0.7.0> Application riak_core started on node 'riak_pg@127.0.0.1'
+2013-06-02 00:00:07.953 [warning] <0.457.0>@riak_pg_message_proxy_vnode:accept:42 Accept fired with {114179815416476790484662877555959610910619729920,'riak_pg@127.0.0.1'} thing <0.441.0>.
+2013-06-02 00:00:07.955 [warning] <0.441.0>@riak_pg_sim:flush:63 Received: thing

@@ -1,0 +1,20 @@
+{application, asn1,
+ [{description, "The Erlang ASN1 compiler version 1.8"},
+  {vsn, "1.8"},
+  {modules, [
+	asn1rt,
+	asn1rt_per_bin,
+	asn1rt_per_bin_rt2ct,
+	asn1rt_uper_bin,
+	asn1rt_ber_bin,
+	asn1rt_ber_bin_v2,
+	asn1rt_check,
+        asn1rt_nif
+             ]},
+  {registered, [
+	asn1_ns,
+	asn1db
+		]},
+  {env, []},
+  {applications, [kernel, stdlib]}
+  ]}.

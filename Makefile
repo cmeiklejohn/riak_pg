@@ -18,11 +18,11 @@ rel: all
 	./rebar generate
 
 relclean:
-	rm -rf rel/riak_pubsub
+	rm -rf rel/riak_pg
 
 stage : rel
-	$(foreach dep,$(wildcard deps/*), rm -rf rel/riak_pubsub/lib/$(shell basename $(dep))-* && ln -sf $(abspath $(dep)) rel/riak_pubsub/lib;)
-	$(foreach app,$(wildcard apps/*), rm -rf rel/riak_pubsub/lib/$(shell basename $(app))-* && ln -sf $(abspath $(app)) rel/riak_pubsub/lib;)
+	$(foreach dep,$(wildcard deps/*), rm -rf rel/riak_pg/lib/$(shell basename $(dep))-* && ln -sf $(abspath $(dep)) rel/riak_pg/lib;)
+	$(foreach app,$(wildcard apps/*), rm -rf rel/riak_pg/lib/$(shell basename $(app))-* && ln -sf $(abspath $(app)) rel/riak_pg/lib;)
 
 test: all
 	./rebar skip_deps=true eunit
@@ -32,7 +32,7 @@ docs:
 
 APPS = kernel stdlib sasl erts ssl tools os_mon runtime_tools crypto inets \
 	xmerl webtool snmp public_key mnesia eunit syntax_tools compiler
-COMBO_PLT = $(HOME)/.riak_pubsub_dialyzer_plt
+COMBO_PLT = $(HOME)/.riak_pg_dialyzer_plt
 
 check_plt: compile
 	dialyzer --check_plt --plt $(COMBO_PLT) --apps $(APPS) ebin

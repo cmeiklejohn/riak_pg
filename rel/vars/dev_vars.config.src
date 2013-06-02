@@ -13,5 +13,5 @@
 %% etc/vm.args
 %%
 {node,         "@NODE@"}.
-{cookie, "riak_pubsub"}.
+{cookie, "riak_pg"}.
 

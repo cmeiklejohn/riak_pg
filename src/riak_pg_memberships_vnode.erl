@@ -25,7 +25,9 @@
          handle_coverage/4,
          handle_exit/3]).
 
--export([join/4,
+-export([create/3,
+         delete/3,
+         join/4,
          leave/4,
          members/3,
          local_members/3]).
@@ -40,6 +42,20 @@ start_vnode(I) ->
 
 init([Partition]) ->
     {ok, #state{partition=Partition, groups=dict:new()}}.
+
+%% @doc Create group.
+create(Preflist, Identity, Group) ->
+    riak_core_vnode_master:command(Preflist,
+                                   {create, Identity, Group},
+                                   {fsm, undefined, self()},
+                                   riak_pg_memberships_vnode_master).
+
+%% @doc Delete group.
+delete(Preflist, Identity, Group) ->
+    riak_core_vnode_master:command(Preflist,
+                                   {delete, Identity, Group},
+                                   {fsm, undefined, self()},
+                                   riak_pg_memberships_vnode_master).
 
 %% @doc Join group.
 join(Preflist, Identity, Group, Pid) ->
@@ -114,6 +130,44 @@ handle_command({members, {ReqId, _}, Group, Node},
 
     %% Return updated groups.
     {reply, {ok, ReqId, Pids}, State};
+
+%% @doc Respond to a delete request.
+handle_command({delete, {ReqId, _}, Group},
+               _Sender,
+               #state{groups=Groups0, partition=Partition}=State) ->
+    %% Generate key for gproc.
+    Key = riak_pg_gproc:key(Group, Partition),
+
+    %% Find existing list of Pids, and add object to it.
+    Pids = riak_dt_orset:new(),
+
+    %% Store back into the dict.
+    Groups = dict:store(Group, Pids, Groups0),
+
+    %% Save to gproc.
+    ok = riak_pg_gproc:store(Key, Pids),
+
+    %% Return updated groups.
+    {reply, {ok, ReqId}, State#state{groups=Groups}};
+
+%% @doc Respond to a create request.
+handle_command({create, {ReqId, _}, Group},
+               _Sender,
+               #state{groups=Groups0, partition=Partition}=State) ->
+    %% Generate key for gproc.
+    Key = riak_pg_gproc:key(Group, Partition),
+
+    %% Find existing list of Pids, and add object to it.
+    Pids = pids(Groups0, Group, riak_dt_orset:new()),
+
+    %% Store back into the dict.
+    Groups = dict:store(Group, Pids, Groups0),
+
+    %% Save to gproc.
+    ok = riak_pg_gproc:store(Key, Pids),
+
+    %% Return updated groups.
+    {reply, {ok, ReqId}, State#state{groups=Groups}};
 
 %% @doc Respond to a join request.
 handle_command({join, {ReqId, _}, Group, Pid},

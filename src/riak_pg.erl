@@ -26,14 +26,14 @@
 %% Public API
 
 %% @doc Create a group.
-%% @todo
-create(_Group) ->
-    ok.
+create(Group) ->
+    {ok, ReqId} = riak_pg_create_fsm:send(Group),
+    wait_for_reqid(ReqId, ?TIMEOUT).
 
 %% @doc Delete a group.
-%% @todo
-delete(_Group) ->
-    ok.
+delete(Group) ->
+    {ok, ReqId} = riak_pg_delete_fsm:send(Group),
+    wait_for_reqid(ReqId, ?TIMEOUT).
 
 %% @doc Send a message to the group.
 send(Group, Message) ->

@@ -45,6 +45,14 @@ init(_Args) ->
                {riak_pg_send_fsm_sup, start_link, []},
                 permanent, infinity, supervisor, [riak_pg_send_fsm_sup]},
 
+    CreateFSM = {riak_pg_create_fsm_sup,
+                 {riak_pg_create_fsm_sup, start_link, []},
+                  permanent, infinity, supervisor, [riak_pg_create_fsm_sup]},
+
+    DeleteFSM = {riak_pg_delete_fsm_sup,
+                 {riak_pg_delete_fsm_sup, start_link, []},
+                  permanent, infinity, supervisor, [riak_pg_delete_fsm_sup]},
+
     JoinFSM = {riak_pg_join_fsm_sup,
                {riak_pg_join_fsm_sup, start_link, []},
                 permanent, infinity, supervisor, [riak_pg_join_fsm_sup]},
@@ -66,6 +74,8 @@ init(_Args) ->
                                  Messaging,
                                  Memberships,
                                  SendFSM,
+                                 CreateFSM,
+                                 DeleteFSM,
                                  JoinFSM,
                                  LeaveFSM,
                                  MembersFSM,

@@ -20,7 +20,8 @@
 init([]) ->
     {ok, #state{}}.
 
-handle_event({service_update, _Services}, State) ->
+handle_event({service_update, Services}, State) ->
+    lager:warning("Service update: ~p.\n", [Services]),
     {ok, State}.
 
 handle_call(_Event, State) ->

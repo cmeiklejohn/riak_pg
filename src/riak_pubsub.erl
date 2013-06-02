@@ -57,8 +57,10 @@ mk_reqid() ->
 %% @doc Wait for a response.
 wait_for_reqid(ReqID, Timeout) ->
     receive
-        {ReqID, ok} -> ok;
-        {ReqID, ok, Val} -> {ok, Val}
+        {ReqID, ok} ->
+            ok;
+        {ReqID, ok, Val} ->
+            {ok, Val}
     after Timeout ->
         {error, timeout}
     end.

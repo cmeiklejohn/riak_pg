@@ -92,7 +92,7 @@ init([ReqId, From, Group, Message]) ->
 prepare(timeout, #state{group=Group}=State) ->
     DocIdx = riak_core_util:chash_key({<<"memberships">>, Group}),
     Preflist = riak_core_apl:get_primary_apl(DocIdx, ?N,
-                                             riak_pg_publications),
+                                             riak_pg_messaging),
     Preflist2 = [{Index, Node} || {{Index, Node}, _Type} <- Preflist],
     {next_state, execute, State#state{preflist=Preflist2}, 0}.
 

@@ -61,9 +61,9 @@ members(Group) ->
     wait_for_reqid(ReqId, ?TIMEOUT).
 
 %% @doc Return a listing of lcoal members of a particular group.
-%% @todo
-local_members(_Group) ->
-    ok.
+local_members(Group) ->
+    {ok, ReqId} = riak_pg_local_members_fsm:local_members(Group),
+    wait_for_reqid(ReqId, ?TIMEOUT).
 
 %% @doc Pings a random vnode to make sure communication is functional.
 ping() ->

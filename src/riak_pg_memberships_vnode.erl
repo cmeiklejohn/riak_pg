@@ -26,7 +26,8 @@
          handle_exit/3]).
 
 -export([join/4,
-         leave/4]).
+         leave/4,
+         members/3]).
 
 -export([repair/3]).
 
@@ -53,6 +54,13 @@ leave(Preflist, Identity, Group, Pid) ->
                                    {fsm, undefined, self()},
                                    riak_pg_memberships_vnode_master).
 
+%% @doc Leave group.
+members(Preflist, Identity, Group) ->
+    riak_core_vnode_master:command(Preflist,
+                                   {members, Identity, Group},
+                                   {fsm, undefined, self()},
+                                   riak_pg_memberships_vnode_master).
+
 %% @doc Perform repair.
 repair(IndexNode, Group, Pids) ->
     riak_core_vnode_master:command(IndexNode,
@@ -74,6 +82,16 @@ handle_command({repair, Group, Pids},
     ok = riak_pg_gproc:store(Key, Pids),
 
     {noreply, State#state{groups=Groups}};
+
+%% @doc Respond to a members request.
+handle_command({members, {ReqId, _}, Group},
+               _Sender,
+               #state{groups=Groups}=State) ->
+    %% Find existing list of Pids.
+    Pids = pids(Groups, Group, riak_dt_orset:new()),
+
+    %% Return updated groups.
+    {reply, {ok, ReqId, Pids}, State};
 
 %% @doc Respond to a join request.
 handle_command({join, {ReqId, _}, Group, Pid},

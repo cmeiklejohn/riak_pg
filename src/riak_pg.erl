@@ -56,9 +56,9 @@ groups() ->
     ok.
 
 %% @doc Return a listing of members of a particular group.
-%% @todo
-members(_Group) ->
-    ok.
+members(Group) ->
+    {ok, ReqId} = riak_pg_members_fsm:members(Group),
+    wait_for_reqid(ReqId, ?TIMEOUT).
 
 %% @doc Return a listing of lcoal members of a particular group.
 %% @todo

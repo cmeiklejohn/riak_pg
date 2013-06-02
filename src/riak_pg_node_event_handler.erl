@@ -20,7 +20,7 @@
 init([]) ->
     {ok, #state{}}.
 
-handle_event({service_update, Services}, State) ->
+handle_event({service_update, _Services}, State) ->
     {ok, State}.
 
 handle_call(_Event, State) ->

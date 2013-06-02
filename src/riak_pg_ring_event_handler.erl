@@ -20,7 +20,7 @@
 init([]) ->
     {ok, #state{}}.
 
-handle_event({ring_update, Ring}, State) ->
+handle_event({ring_update, _Ring}, State) ->
     {ok, State}.
 
 handle_call(_Event, State) ->

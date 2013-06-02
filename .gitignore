@@ -7,3 +7,5 @@ apps/riak_pubsub/src/*
 tags
 rel/vars/*_vars.config
 rel/riak_pg
+.DS_Store
+doc

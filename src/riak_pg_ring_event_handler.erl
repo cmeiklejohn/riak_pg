@@ -21,7 +21,6 @@ init([]) ->
     {ok, #state{}}.
 
 handle_event({ring_update, Ring}, State) ->
-    lager:warning("Ring update: ~p.\n", [Ring]),
     {ok, State}.
 
 handle_call(_Event, State) ->

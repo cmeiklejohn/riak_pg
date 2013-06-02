@@ -39,9 +39,6 @@ init([Partition]) ->
 %% @doc Accept a message and attempt to deliver it to the vnodes
 %%      defined in the preflist, in order.
 accept([{Index, Node}|Preflist], Message, Pid) ->
-    lager:warning("Accept fired with ~p ~p ~p.\n",
-          [{Index, Node}, Message, Pid]),
-
     try
         riak_core_vnode_master:sync_command({Index, Node},
                                             {accept, Message, Pid},

@@ -29,6 +29,10 @@ init(_Args) ->
                {riak_core_vnode_master, start_link, [riak_pubsub_vnode]},
                 permanent, 5000, worker, [riak_core_vnode_master]},
 
+    MessageProxy = {riak_pubsub_message_proxy_vnode_master,
+                    {riak_core_vnode_master, start_link, [riak_pubsub_message_proxy_vnode]},
+                     permanent, 5000, worker, [riak_core_vnode_master]},
+
     Publications = {riak_pubsub_publications_vnode_master,
                     {riak_core_vnode_master, start_link, [riak_pubsub_publications_vnode]},
                      permanent, 5000, worker, [riak_core_vnode_master]},
@@ -50,6 +54,7 @@ init(_Args) ->
                      permanent, infinity, supervisor, [riak_pubsub_unsubscribe_fsm_sup]},
 
     {ok, {{one_for_one, 5, 10}, [VMaster,
+                                 MessageProxy,
                                  Publications,
                                  Subscriptions,
                                  PublishFSM,

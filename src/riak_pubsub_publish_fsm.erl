@@ -164,11 +164,14 @@ merge(Replies) ->
                 riak_dt_orset:new(), Replies).
 
 %% @doc Propagate messages to subscribers.
-propagate(Message, Pids) ->
-    lager:warning("Propagate called with ~p and ~p.\n",
-                  [Message, Pids]),
-    [Pid ! Message || Pid <- Pids],
-    Pids.
+propagate(Message, Pids) when is_list(Pids) ->
+    [propagate(Message, Pid) || Pid <- Pids],
+    Pids;
+propagate(Message, Pid) when is_pid(Pid) ->
+    DocIdx = riak_core_util:chash_key({<<"subscriptions">>, Pid}),
+    Preflist = riak_core_apl:get_primary_apl(DocIdx, 1, riak_pubsub),
+    Preflist2 = [{Index, Node} || {{Index, Node}, _Type} <- Preflist],
+    riak_pubsub_message_proxy_vnode:accept(Preflist2, Message, Pid).
 
 %% @doc Trigger repair if necessary.
 repair([{IndexNode, Pids}|Replies],

@@ -22,13 +22,13 @@ start(_StartType, _StartArgs) ->
                                     [{vnode_module, riak_pg_vnode}]),
             ok = riak_core_node_watcher:service_up(riak_pg, self()),
 
-            ok = riak_core:register(riak_pg_publications,
-                                    [{vnode_module, riak_pg_publications_vnode}]),
-            ok = riak_core_node_watcher:service_up(riak_pg_publications, self()),
+            ok = riak_core:register(riak_pg_messaging,
+                                    [{vnode_module, riak_pg_messaging_vnode}]),
+            ok = riak_core_node_watcher:service_up(riak_pg_messaging, self()),
 
-            ok = riak_core:register(riak_pg_subscriptions,
-                                    [{vnode_module, riak_pg_subscriptions_vnode}]),
-            ok = riak_core_node_watcher:service_up(riak_pg_subscriptions, self()),
+            ok = riak_core:register(riak_pg_memberships,
+                                    [{vnode_module, riak_pg_memberships_vnode}]),
+            ok = riak_core_node_watcher:service_up(riak_pg_memberships, self()),
 
             ok = riak_core:register(riak_pg_message_proxy,
                                     [{vnode_module, riak_pg_message_proxy_vnode}]),

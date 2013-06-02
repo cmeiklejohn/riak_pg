@@ -15,4 +15,5 @@ init([]) ->
 
 to_html(ReqData, Context) ->
     Result = io_lib:format("Result: ~p", [riak_pg:ping()]),
-    {"<html><head><title>{{appid}}</title></head><body>" ++ Result ++ "</body></html>", ReqData, Context}.
+    {"<html><head><title>{{appid}}</title></head><body>" ++
+     Result ++ "</body></html>", ReqData, Context}.

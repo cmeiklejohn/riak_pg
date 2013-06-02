@@ -12,8 +12,8 @@
 
 %% @doc Generate a gproc registration key.
 -spec key(term(), riak_core:partition()) -> gproc:key().
-key(Channel, Partition) ->
-    {p, l, {riak_pg_subscription, Channel, Partition}}.
+key(Group, Partition) ->
+    {p, l, {riak_pg_membership, Group, Partition}}.
 
 %% @doc Store a value in gproc.
 -spec store(gproc:key(), term()) -> ok.

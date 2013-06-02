@@ -1,8 +1,8 @@
 %% @author Christopher Meiklejohn <christopher.meiklejohn@gmail.com>
 %% @copyright 2013 Christopher Meiklejohn.
-%% @doc Default vnode.
+%% @doc Send vnode.
 
--module(riak_pg_vnode).
+-module(riak_pg_messaging_vnode).
 -author('Christopher Meiklejohn <christopher.meiklejohn@gmail.com>').
 
 -behaviour(riak_core_vnode).
@@ -24,18 +24,42 @@
          handle_coverage/4,
          handle_exit/3]).
 
--record(state, {partition}).
+-export([send/4]).
+
+-record(state, {partition, node}).
 
 %% API
 start_vnode(I) ->
     riak_core_vnode_master:get_vnode_pid(I, ?MODULE).
 
 init([Partition]) ->
-    {ok, #state{partition=Partition}}.
+    {ok, #state{partition=Partition, node=node()}}.
 
-%% Sample command: respond to a ping
-handle_command(ping, _Sender, State) ->
-    {reply, {pong, State#state.partition}, State};
+%% @doc Send a message.
+send(Preflist, Identity, Group, Message) ->
+    riak_core_vnode_master:command(
+        Preflist,
+        {send, Identity, Group, Message},
+        {fsm, undefined, self()},
+        riak_pg_messaging_vnode_master).
+
+%% @doc When receiving a message, find all globally
+%%      registered listeners for the message and perform the relay.
+handle_command({send, {ReqId, _}, Group, _Message},
+               _Sender,
+               #state{partition=Partition, node=Node}=State) ->
+    Reply = try
+        Key = riak_pg_gproc:key(Group, Partition),
+        [{_Pid, Pids}] = gproc:lookup_values(Key),
+        Pids
+    catch
+        _:_ ->
+            []
+    end,
+
+    {reply, {ok, ReqId, {Partition, Node}, Reply}, State};
+
+%% @doc Default handler.
 handle_command(Message, _Sender, State) ->
     ?PRINT({unhandled_command, Message}),
     {noreply, State}.

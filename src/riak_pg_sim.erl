@@ -10,22 +10,22 @@
          heal/0]).
 
 %% @doc Test a round trip.
-test(Channel, Message) ->
+test(Group, Message) ->
     Pid = self(),
 
-    case riak_pg:subscribe(Channel, Pid) of
+    case riak_pg:join(Group, Pid) of
         {error, timeout} ->
             false;
         _ ->
-            {ok, _} = riak_pg:publish(Channel, Message),
+            {ok, _} = riak_pg:send(Group, Message),
             ok = flush(),
-            ok = riak_pg:unsubscribe(Channel, Pid),
+            ok = riak_pg:leave(Group, Pid),
             true
     end.
 
 %% @doc Partition.
 part() ->
-    true = rpc:call('riak_pubub@127.0.0.1',
+    true = rpc:call('riak_pg@127.0.0.1',
                     erlang,
                     set_cookie,
                     ['riak_pg2@127.0.0.1', riak_pg2]),

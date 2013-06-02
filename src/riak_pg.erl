@@ -10,30 +10,60 @@
 
 -define(TIMEOUT, 5000).
 
--export([ping/0,
-         publish/2,
-         subscribe/2,
-         unsubscribe/2]).
+-export([create/1,
+         delete/1,
+         join/2,
+         leave/2,
+         send/2,
+         ping/0,
+         groups/0,
+         members/1,
+         local_members/1]).
 
 -export([mk_reqid/0,
          wait_for_reqid/2]).
 
 %% Public API
 
-%% @doc Publish updates on a given channel.
-publish(Channel, Message) ->
-    {ok, ReqId} = riak_pg_publish_fsm:publish(Channel, Message),
+%% @doc Create a group.
+%% @todo
+create(_Group) ->
+    ok.
+
+%% @doc Delete a group.
+%% @todo
+delete(_Group) ->
+    ok.
+
+%% @doc Send a message to the group.
+send(Group, Message) ->
+    {ok, ReqId} = riak_pg_send_fsm:send(Group, Message),
     wait_for_reqid(ReqId, ?TIMEOUT).
 
-%% @doc Subscribe to updates on a given channel.
-subscribe(Channel, Pid) ->
-    {ok, ReqId} = riak_pg_subscribe_fsm:subscribe(Channel, Pid),
+%% @doc Join pid to group.
+join(Group, Pid) ->
+    {ok, ReqId} = riak_pg_join_fsm:join(Group, Pid),
     wait_for_reqid(ReqId, ?TIMEOUT).
 
-%% @doc Subscribe to updates on a given channel.
-unsubscribe(Channel, Pid) ->
-    {ok, ReqId} = riak_pg_unsubscribe_fsm:unsubscribe(Channel, Pid),
+%% @doc Remove pid from group.
+leave(Group, Pid) ->
+    {ok, ReqId} = riak_pg_leave_fsm:leave(Group, Pid),
     wait_for_reqid(ReqId, ?TIMEOUT).
+
+%% @doc Return a listing of all registered groups.
+%% @todo
+groups() ->
+    ok.
+
+%% @doc Return a listing of members of a particular group.
+%% @todo
+members(_Group) ->
+    ok.
+
+%% @doc Return a listing of lcoal members of a particular group.
+%% @todo
+local_members(_Group) ->
+    ok.
 
 %% @doc Pings a random vnode to make sure communication is functional.
 ping() ->

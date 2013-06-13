@@ -28,12 +28,12 @@
 
 %% @doc Create a group.
 create(Group) ->
-    {ok, ReqId} = riak_pg_create_fsm:send(Group),
+    {ok, ReqId} = riak_pg_create_fsm:create(Group),
     wait_for_reqid(ReqId, ?TIMEOUT).
 
 %% @doc Delete a group.
 delete(Group) ->
-    {ok, ReqId} = riak_pg_delete_fsm:send(Group),
+    {ok, ReqId} = riak_pg_delete_fsm:delete(Group),
     wait_for_reqid(ReqId, ?TIMEOUT).
 
 %% @doc Send a message to the group.

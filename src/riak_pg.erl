@@ -60,10 +60,17 @@ members(Group) ->
     {ok, ReqId} = riak_pg_members_fsm:members(Group),
     wait_for_reqid(ReqId, ?TIMEOUT).
 
-%% @doc Return a listing of lcoal members of a particular group.
+%% @doc Return a listing of local members of a particular group.
 local_members(Group) ->
-    {ok, ReqId} = riak_pg_local_members_fsm:local_members(Group),
-    wait_for_reqid(ReqId, ?TIMEOUT).
+    {ok, ReqId} = riak_pg_members_fsm:members(Group),
+    case wait_for_reqid(ReqId, ?TIMEOUT) of
+        {ok, Members} ->
+            LocalMembers = lists:filter(fun(Pid) ->
+                            node(Pid) =:= node() end, Members),
+            {ok, LocalMembers};
+        {error, Error} ->
+            {error, Error}
+    end.
 
 %% @doc Pings a random vnode to make sure communication is functional.
 ping() ->

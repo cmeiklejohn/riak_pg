@@ -29,19 +29,18 @@
          delete/3,
          join/4,
          leave/4,
-         members/3,
-         local_members/3]).
+         members/3]).
 
 -export([repair/3]).
 
--record(state, {partition, groups}).
+-record(state, {node, partition, groups}).
 
 %% API
 start_vnode(I) ->
     riak_core_vnode_master:get_vnode_pid(I, ?MODULE).
 
 init([Partition]) ->
-    {ok, #state{partition=Partition, groups=dict:new()}}.
+    {ok, #state{node=node(), partition=Partition, groups=dict:new()}}.
 
 %% @doc Create group.
 create(Preflist, Identity, Group) ->
@@ -78,14 +77,6 @@ members(Preflist, Identity, Group) ->
                                    {fsm, undefined, self()},
                                    riak_pg_memberships_vnode_master).
 
-%% @doc Local group members.
-local_members(Preflist, Identity, Group) ->
-    Node = node(),
-    riak_core_vnode_master:command(Preflist,
-                                   {members, Identity, Group, Node},
-                                   {fsm, undefined, self()},
-                                   riak_pg_memberships_vnode_master).
-
 %% @doc Perform repair.
 repair(IndexNode, Group, Pids) ->
     riak_core_vnode_master:command(IndexNode,
@@ -111,25 +102,12 @@ handle_command({repair, Group, Pids},
 %% @doc Respond to a members request.
 handle_command({members, {ReqId, _}, Group},
                _Sender,
-               #state{groups=Groups}=State) ->
+               #state{groups=Groups, partition=Partition, node=Node}=State) ->
     %% Find existing list of Pids.
     Pids = pids(Groups, Group, riak_dt_orset:new()),
 
     %% Return updated groups.
-    {reply, {ok, ReqId, Pids}, State};
-
-%% @doc Respond to a local members request.
-handle_command({members, {ReqId, _}, Group, Node},
-               _Sender,
-               #state{groups=Groups}=State) ->
-    %% Find existing list of Pids.
-    Pids0 = pids(Groups, Group, riak_dt_orset:new()),
-
-    %% Filter non-local.
-    Pids = lists:filter(fun(X) -> node(X) =:= Node end, Pids0),
-
-    %% Return updated groups.
-    {reply, {ok, ReqId, Pids}, State};
+    {reply, {ok, ReqId, {Partition, Node}, Pids}, State};
 
 %% @doc Respond to a delete request.
 handle_command({delete, {ReqId, _}, Group},

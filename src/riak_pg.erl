@@ -18,7 +18,8 @@
          ping/0,
          groups/0,
          members/1,
-         local_members/1]).
+         local_members/1,
+         connected_members/1]).
 
 -export([mk_reqid/0,
          wait_for_reqid/2]).
@@ -68,6 +69,18 @@ local_members(Group) ->
             LocalMembers = lists:filter(fun(Pid) ->
                             node(Pid) =:= node() end, Members),
             {ok, LocalMembers};
+        {error, Error} ->
+            {error, Error}
+    end.
+
+%% @doc Return a listing of connected members of a particular group.
+connected_members(Group) ->
+    {ok, ReqId} = riak_pg_members_fsm:members(Group),
+    case wait_for_reqid(ReqId, ?TIMEOUT) of
+        {ok, Members} ->
+            ConnectedMembers = lists:filter(fun(Pid) ->
+                            lists:member(node(Pid), nodes()) end, Members),
+            {ok, ConnectedMembers};
         {error, Error} ->
             {error, Error}
     end.

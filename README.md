@@ -2,7 +2,7 @@
 
 ## Overview
 
-Distributed process groups with gproc and riak\_core.  Work in progress,
+Distributed process groups with riak\_core.  Work in progress,
 not for production use.
 
 ## Copyright

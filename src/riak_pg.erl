@@ -81,13 +81,13 @@ groups() ->
     ok.
 
 %% @doc Return a listing of members of a particular group.
--spec members(term()) -> {ok, []} | {error, timeout}.
+-spec members(term()) -> {ok, list(pid())} | {error, timeout}.
 members(Group) ->
     {ok, ReqId} = riak_pg_members_fsm:members(Group),
     wait_for_reqid(ReqId, ?TIMEOUT).
 
 %% @doc Return a listing of local members of a particular group.
--spec local_members(term()) -> {ok, []} | {error, timeout}.
+-spec local_members(term()) -> {ok, list(pid())} | {error, timeout}.
 local_members(Group) ->
     {ok, ReqId} = riak_pg_members_fsm:members(Group),
     case wait_for_reqid(ReqId, ?TIMEOUT) of
@@ -100,7 +100,7 @@ local_members(Group) ->
     end.
 
 %% @doc Return a listing of connected members of a particular group.
--spec connected_members(term()) -> {ok, []} | {error, timeout}.
+-spec connected_members(term()) -> {ok, list(pid())} | {error, timeout}.
 connected_members(Group) ->
     {ok, ReqId} = riak_pg_members_fsm:members(Group),
     case wait_for_reqid(ReqId, ?TIMEOUT) of

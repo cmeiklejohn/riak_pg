@@ -38,9 +38,9 @@ You can also return the members, local members or connected members of a
 group.
 
 ```erlang
-members(term()) -> {ok, []} | {error, timeout}.
-local_members(term()) -> {ok, []} | {error, timeout}.
-connected_members(term()) -> {ok, []} | {error, timeout}.
+members(term()) -> {ok, list(pid()) | {error, timeout}.
+local_members(term()) -> {ok, list(pid()) | {error, timeout}.
+connected_members(term()) -> {ok, list(pid()) | {error, timeout}.
 ```
 
 ## Copyright

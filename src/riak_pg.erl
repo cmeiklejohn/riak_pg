@@ -27,11 +27,13 @@
 %% Public API
 
 %% @doc Create a group.
+-spec create(term()) -> ok | {error, timeout}.
 create(Group) ->
     {ok, ReqId} = riak_pg_create_fsm:create(Group),
     wait_for_reqid(ReqId, ?TIMEOUT).
 
 %% @doc Delete a group.
+-spec delete(term()) -> ok | {error, timeout}.
 delete(Group) ->
     {ok, ReqId} = riak_pg_delete_fsm:delete(Group),
     wait_for_reqid(ReqId, ?TIMEOUT).
@@ -42,26 +44,31 @@ send(Group, Message) ->
     wait_for_reqid(ReqId, ?TIMEOUT).
 
 %% @doc Join pid to group.
+-spec join(term(), pid()) -> ok | {error, timeout}.
 join(Group, Pid) ->
     {ok, ReqId} = riak_pg_join_fsm:join(Group, Pid),
     wait_for_reqid(ReqId, ?TIMEOUT).
 
 %% @doc Remove pid from group.
+-spec leave(term(), pid()) -> ok | {error, timeout}.
 leave(Group, Pid) ->
     {ok, ReqId} = riak_pg_leave_fsm:leave(Group, Pid),
     wait_for_reqid(ReqId, ?TIMEOUT).
 
 %% @doc Return a listing of all registered groups.
 %% @todo
+-spec groups() -> ok.
 groups() ->
     ok.
 
 %% @doc Return a listing of members of a particular group.
+-spec members(term()) -> {ok, []} | {error, timeout}.
 members(Group) ->
     {ok, ReqId} = riak_pg_members_fsm:members(Group),
     wait_for_reqid(ReqId, ?TIMEOUT).
 
 %% @doc Return a listing of local members of a particular group.
+-spec local_members(term()) -> {ok, []} | {error, timeout}.
 local_members(Group) ->
     {ok, ReqId} = riak_pg_members_fsm:members(Group),
     case wait_for_reqid(ReqId, ?TIMEOUT) of
@@ -74,6 +81,7 @@ local_members(Group) ->
     end.
 
 %% @doc Return a listing of connected members of a particular group.
+-spec connected_members(term()) -> {ok, []} | {error, timeout}.
 connected_members(Group) ->
     {ok, ReqId} = riak_pg_members_fsm:members(Group),
     case wait_for_reqid(ReqId, ?TIMEOUT) of

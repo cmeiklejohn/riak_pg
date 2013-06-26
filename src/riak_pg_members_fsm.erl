@@ -163,12 +163,32 @@ waiting_n({ok, _ReqId, IndexNode, Reply},
 
 %% @doc Perform read repair.
 finalize(timeout, #state{replies=Replies}=State) ->
-    ok = repair(Replies, State#state{pids=merge(Replies)}),
+    Merged = merge(Replies),
+    Pruned = prune(Merged),
+    ok = repair(Replies, State#state{pids=Pruned}),
     {stop, normal, State}.
 
 %%%===================================================================
 %%% Internal Functions
 %%%===================================================================
+
+%% @doc If the node is connected, and the process is not alive, prune
+%%      it.
+prune_pid(Pid) when is_pid(Pid) ->
+    lists:member(node(Pid), nodes()) andalso is_process_alive(Pid).
+
+%% @doc Based on connected nodes, prune out processes that no longer
+%%      exist.
+prune(Set) ->
+    Pids0 = riak_dt_orset:value(Set),
+    lists:foldl(fun(Pid, Pids) ->
+                case prune_pid(Pid) of
+                    true ->
+                        riak_dt_orset:update({remove, none, Pid}, Pids);
+                    false ->
+                        Pids
+                end
+        end, Set, Pids0).
 
 %% @doc Perform merge of replicas.
 merge(Replies) ->

@@ -175,7 +175,7 @@ finalize(timeout, #state{replies=Replies}=State) ->
 %% @doc If the node is connected, and the process is not alive, prune
 %%      it.
 prune_pid(Pid) when is_pid(Pid) ->
-    lists:member(node(Pid), nodes()) andalso is_process_alive(Pid).
+    lists:member(node(Pid), nodes()) andalso (is_process_alive(Pid) =:= false).
 
 %% @doc Based on connected nodes, prune out processes that no longer
 %%      exist.

@@ -139,7 +139,7 @@ waiting({ok, _ReqId, IndexNode, Reply},
     case NumResponses =:= ?R of
         true ->
             Pids = propagate(Message,
-                             riak_dt_orset:value(merge(Replies))),
+                             riak_dt_vvorset:value(merge(Replies))),
             From ! {ReqId, ok, Pids},
 
             case NumResponses =:= ?N of
@@ -178,8 +178,8 @@ finalize(timeout, #state{replies=Replies}=State) ->
 
 %% @doc Perform merge of replicas.
 merge(Replies) ->
-    lists:foldl(fun({_, Pids}, Acc) -> riak_dt_orset:merge(Pids, Acc) end,
-                riak_dt_orset:new(), Replies).
+    lists:foldl(fun({_, Pids}, Acc) -> riak_dt_vvorset:merge(Pids, Acc) end,
+                riak_dt_vvorset:new(), Replies).
 
 %% @doc Propagate messages to memberships.
 propagate(Message, Pids) when is_list(Pids) ->
@@ -194,7 +194,7 @@ propagate(Message, Pid) when is_pid(Pid) ->
 %% @doc Trigger repair if necessary.
 repair([{IndexNode, Pids}|Replies],
        #state{group=Group, pids=MPids}=State) ->
-    case riak_dt_orset:equal(Pids, MPids) of
+    case riak_dt_vvorset:equal(Pids, MPids) of
         false ->
             riak_pg_memberships_vnode:repair(IndexNode, Group, MPids);
         true ->

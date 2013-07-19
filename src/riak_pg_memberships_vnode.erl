@@ -123,7 +123,7 @@ handle_command({members, {ReqId, _}, Group},
                _Sender,
                #state{groups=Groups, partition=Partition, node=Node}=State) ->
     %% Find existing list of Pids.
-    Pids = pids(Groups, Group, riak_dt_orset:new()),
+    Pids = pids(Groups, Group, riak_dt_vvorset:new()),
 
     %% Return updated groups.
     {reply, {ok, ReqId, {Partition, Node}, Pids}, State};
@@ -136,7 +136,7 @@ handle_command({delete, {ReqId, _}, Group},
     Key = riak_pg_gproc:key(Group, Partition),
 
     %% Find existing list of Pids, and add object to it.
-    Pids = riak_dt_orset:new(),
+    Pids = riak_dt_vvorset:new(),
 
     %% Store back into the dict.
     Groups = dict:store(Group, Pids, Groups0),
@@ -155,7 +155,7 @@ handle_command({create, {ReqId, _}, Group},
     Key = riak_pg_gproc:key(Group, Partition),
 
     %% Find existing list of Pids, and add object to it.
-    Pids = pids(Groups0, Group, riak_dt_orset:new()),
+    Pids = pids(Groups0, Group, riak_dt_vvorset:new()),
 
     %% Store back into the dict.
     Groups = dict:store(Group, Pids, Groups0),
@@ -174,8 +174,8 @@ handle_command({join, {ReqId, _}, Group, Pid},
     Key = riak_pg_gproc:key(Group, Partition),
 
     %% Find existing list of Pids, and add object to it.
-    Pids0 = pids(Groups0, Group, riak_dt_orset:new()),
-    Pids = riak_dt_orset:update({add, Pid}, Partition, Pids0),
+    Pids0 = pids(Groups0, Group, riak_dt_vvorset:new()),
+    Pids = riak_dt_vvorset:update({add, Pid}, Partition, Pids0),
 
     %% Store back into the dict.
     Groups = dict:store(Group, Pids, Groups0),
@@ -194,8 +194,8 @@ handle_command({leave, {ReqId, _}, Group, Pid},
     Key = riak_pg_gproc:key(Group, Partition),
 
     %% Find existing list of Pids, and add object to it.
-    Pids0 = pids(Groups0, Group, riak_dt_orset:new()),
-    Pids = riak_dt_orset:update({remove, Pid}, Partition, Pids0),
+    Pids0 = pids(Groups0, Group, riak_dt_vvorset:new()),
+    Pids = riak_dt_vvorset:update({remove, Pid}, Partition, Pids0),
 
     %% Store back into the dict.
     Groups = dict:store(Group, Pids, Groups0),
@@ -234,8 +234,8 @@ handle_handoff_data(Data,
     Key = riak_pg_gproc:key(Group, Partition),
 
     %% Find existing list of Pids, and add object to it.
-    Pids0 = pids(Groups0, Group, riak_dt_orset:new()),
-    MPids = riak_dt_orset:merge(Pids, Pids0),
+    Pids0 = pids(Groups0, Group, riak_dt_vvorset:new()),
+    MPids = riak_dt_vvorset:merge(Pids, Pids0),
 
     %% Store back into the dict.
     Groups = dict:store(Group, MPids, Groups0),

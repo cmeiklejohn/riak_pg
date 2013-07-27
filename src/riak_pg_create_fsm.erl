@@ -62,8 +62,7 @@ start_link(ReqId, From, Group) ->
 %% @doc Create a group.
 create(Group) ->
     ReqId = riak_pg:mk_reqid(),
-    riak_pg_create_fsm_sup:start_child(
-        [ReqId, self(), Group]),
+    _ = riak_pg_create_fsm_sup:start_child([ReqId, self(), Group]),
     {ok, ReqId}.
 
 %%%===================================================================

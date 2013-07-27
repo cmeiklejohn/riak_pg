@@ -66,7 +66,7 @@ start_link(ReqId, From, Group) ->
 %% @doc Get members.
 members(Group) ->
     ReqId = riak_pg:mk_reqid(),
-    riak_pg_members_fsm_sup:start_child([ReqId, self(), Group]),
+    _ = riak_pg_members_fsm_sup:start_child([ReqId, self(), Group]),
     {ok, ReqId}.
 
 %%%===================================================================

@@ -62,8 +62,7 @@ start_link(ReqId, From, Group) ->
 %% @doc Delete a group.
 delete(Group) ->
     ReqId = riak_pg:mk_reqid(),
-    riak_pg_delete_fsm_sup:start_child(
-        [ReqId, self(), Group]),
+    _ = riak_pg_delete_fsm_sup:start_child([ReqId, self(), Group]),
     {ok, ReqId}.
 
 %%%===================================================================

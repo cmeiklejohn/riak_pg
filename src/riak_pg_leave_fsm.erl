@@ -63,8 +63,7 @@ start_link(ReqId, From, Group, Pid) ->
 %% @doc Leave this process group.
 leave(Group, Pid) ->
     ReqId = riak_pg:mk_reqid(),
-    riak_pg_leave_fsm_sup:start_child(
-        [ReqId, self(), Group, Pid]),
+    _ = riak_pg_leave_fsm_sup:start_child([ReqId, self(), Group, Pid]),
     {ok, ReqId}.
 
 %%%===================================================================

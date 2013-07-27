@@ -48,21 +48,9 @@ init(_Args) ->
                {riak_core_vnode_master, start_link, [riak_pg_vnode]},
                 permanent, 5000, worker, [riak_core_vnode_master]},
 
-    MessageProxy = {riak_pg_message_proxy_vnode_master,
-                    {riak_core_vnode_master, start_link, [riak_pg_message_proxy_vnode]},
-                     permanent, 5000, worker, [riak_core_vnode_master]},
-
-    Messaging = {riak_pg_messaging_vnode_master,
-                 {riak_core_vnode_master, start_link, [riak_pg_messaging_vnode]},
-                  permanent, 5000, worker, [riak_core_vnode_master]},
-
     Memberships = {riak_pg_memberships_vnode_master,
                    {riak_core_vnode_master, start_link, [riak_pg_memberships_vnode]},
                     permanent, 5000, worker, [riak_core_vnode_master]},
-
-    SendFSM = {riak_pg_send_fsm_sup,
-               {riak_pg_send_fsm_sup, start_link, []},
-                permanent, infinity, supervisor, [riak_pg_send_fsm_sup]},
 
     CreateFSM = {riak_pg_create_fsm_sup,
                  {riak_pg_create_fsm_sup, start_link, []},
@@ -85,10 +73,7 @@ init(_Args) ->
                    permanent, infinity, supervisor, [riak_pg_members_fsm_sup]},
 
     {ok, {{one_for_one, 5, 10}, [VMaster,
-                                 MessageProxy,
-                                 Messaging,
                                  Memberships,
-                                 SendFSM,
                                  CreateFSM,
                                  DeleteFSM,
                                  JoinFSM,

@@ -106,15 +106,9 @@ repair(IndexNode, Group, Pids) ->
 %% @doc Perform join as part of repair.
 handle_command({repair, Group, Pids},
                _Sender,
-               #state{groups=Groups0, partition=Partition}=State) ->
-    %% Generate key for gproc.
-    Key = riak_pg_gproc:key(Group, Partition),
-
+               #state{groups=Groups0}=State) ->
     %% Store back into the dict.
     Groups = dict:store(Group, Pids, Groups0),
-
-    %% Save to gproc.
-    ok = riak_pg_gproc:store(Key, Pids),
 
     {noreply, State#state{groups=Groups}};
 
@@ -131,18 +125,12 @@ handle_command({members, {ReqId, _}, Group},
 %% @doc Respond to a delete request.
 handle_command({delete, {ReqId, _}, Group},
                _Sender,
-               #state{groups=Groups0, partition=Partition}=State) ->
-    %% Generate key for gproc.
-    Key = riak_pg_gproc:key(Group, Partition),
-
+               #state{groups=Groups0}=State) ->
     %% Find existing list of Pids, and add object to it.
     Pids = riak_dt_vvorset:new(),
 
     %% Store back into the dict.
     Groups = dict:store(Group, Pids, Groups0),
-
-    %% Save to gproc.
-    ok = riak_pg_gproc:store(Key, Pids),
 
     %% Return updated groups.
     {reply, {ok, ReqId}, State#state{groups=Groups}};
@@ -150,18 +138,12 @@ handle_command({delete, {ReqId, _}, Group},
 %% @doc Respond to a create request.
 handle_command({create, {ReqId, _}, Group},
                _Sender,
-               #state{groups=Groups0, partition=Partition}=State) ->
-    %% Generate key for gproc.
-    Key = riak_pg_gproc:key(Group, Partition),
-
+               #state{groups=Groups0}=State) ->
     %% Find existing list of Pids, and add object to it.
     Pids = pids(Groups0, Group, riak_dt_vvorset:new()),
 
     %% Store back into the dict.
     Groups = dict:store(Group, Pids, Groups0),
-
-    %% Save to gproc.
-    ok = riak_pg_gproc:store(Key, Pids),
 
     %% Return updated groups.
     {reply, {ok, ReqId}, State#state{groups=Groups}};
@@ -170,18 +152,12 @@ handle_command({create, {ReqId, _}, Group},
 handle_command({join, {ReqId, _}, Group, Pid},
                _Sender,
                #state{groups=Groups0, partition=Partition}=State) ->
-    %% Generate key for gproc.
-    Key = riak_pg_gproc:key(Group, Partition),
-
     %% Find existing list of Pids, and add object to it.
     Pids0 = pids(Groups0, Group, riak_dt_vvorset:new()),
     Pids = riak_dt_vvorset:update({add, Pid}, Partition, Pids0),
 
     %% Store back into the dict.
     Groups = dict:store(Group, Pids, Groups0),
-
-    %% Save to gproc.
-    ok = riak_pg_gproc:store(Key, Pids),
 
     %% Return updated groups.
     {reply, {ok, ReqId}, State#state{groups=Groups}};
@@ -190,18 +166,12 @@ handle_command({join, {ReqId, _}, Group, Pid},
 handle_command({leave, {ReqId, _}, Group, Pid},
                _Sender,
                #state{groups=Groups0, partition=Partition}=State) ->
-    %% Generate key for gproc.
-    Key = riak_pg_gproc:key(Group, Partition),
-
     %% Find existing list of Pids, and add object to it.
     Pids0 = pids(Groups0, Group, riak_dt_vvorset:new()),
     Pids = riak_dt_vvorset:update({remove, Pid}, Partition, Pids0),
 
     %% Store back into the dict.
     Groups = dict:store(Group, Pids, Groups0),
-
-    %% Save to gproc.
-    ok = riak_pg_gproc:store(Key, Pids),
 
     {reply, {ok, ReqId}, State#state{groups=Groups}};
 
@@ -227,11 +197,8 @@ handoff_finished(_TargetNode, State) ->
 %% @doc Handle receiving data from handoff.  Decode data and
 %%      perform join/leave.
 handle_handoff_data(Data,
-                    #state{groups=Groups0, partition=Partition}=State) ->
+                    #state{groups=Groups0}=State) ->
     {Group, Pids} = binary_to_term(Data),
-
-    %% Generate key for gproc.
-    Key = riak_pg_gproc:key(Group, Partition),
 
     %% Find existing list of Pids, and add object to it.
     Pids0 = pids(Groups0, Group, riak_dt_vvorset:new()),
@@ -239,9 +206,6 @@ handle_handoff_data(Data,
 
     %% Store back into the dict.
     Groups = dict:store(Group, MPids, Groups0),
-
-    %% Save to gproc.
-    ok = riak_pg_gproc:store(Key, MPids),
 
     {reply, ok, State#state{groups=Groups}}.
 

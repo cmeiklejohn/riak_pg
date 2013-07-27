@@ -46,7 +46,8 @@ dialyzer: compile
 	@echo Use "'make build_plt'" to build PLT prior to using this target.
 	@echo
 	@sleep 1
-	dialyzer -Wno_return --plt $(COMBO_PLT) ebin
+	dialyzer -Wunmatched_returns -Werror_handling -Wrace_conditions \
+		-Wunderspecs --plt $(COMBO_PLT) ebin
 
 cleanplt:
 	@echo

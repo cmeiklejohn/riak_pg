@@ -6,7 +6,6 @@
   {registered, []},
   {applications, [kernel,
                   stdlib,
-                  gproc,
                   sasl,
                   riak_core]},
   {mod, {riak_pg_app, []}},

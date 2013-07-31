@@ -88,3 +88,6 @@ stagedev% : dev%
 
 devclean: clean
 	rm -rf dev
+
+xref: compile
+	./rebar xref skip_deps=true | grep -v unused

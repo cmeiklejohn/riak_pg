@@ -26,7 +26,7 @@
 
 -behaviour(gen_fsm).
 
--include_lib("riak_pg.hrl").
+-include("riak_pg.hrl").
 
 %% API
 -export([start_link/4,

@@ -26,7 +26,7 @@
 
 -behaviour(riak_core_vnode).
 
--include_lib("riak_pg.hrl").
+-include("riak_pg.hrl").
 
 -export([start_vnode/1,
          init/1,

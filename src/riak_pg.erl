@@ -24,7 +24,7 @@
 -module(riak_pg).
 -author('Christopher Meiklejohn <christopher.meiklejohn@gmail.com>').
 
--include_lib("riak_pg.hrl").
+-include("riak_pg.hrl").
 -include_lib("riak_core/include/riak_core_vnode.hrl").
 
 -define(TIMEOUT, 5000).

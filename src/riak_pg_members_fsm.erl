@@ -184,7 +184,7 @@ prune(Set) ->
     lists:foldl(fun(Pid, Pids) ->
                 case prune_pid(Pid) of
                     true ->
-                        riak_dt_vvorset:update({remove, none, Pid}, Pids);
+                        riak_dt_vvorset:update({remove, Pid}, none, Pids);
                     false ->
                         Pids
                 end

@@ -33,7 +33,6 @@
          delete/1,
          join/2,
          leave/2,
-         send/2,
          ping/0,
          groups/0,
          members/1,
@@ -55,11 +54,6 @@ create(Group) ->
 -spec delete(term()) -> ok | {error, timeout}.
 delete(Group) ->
     {ok, ReqId} = riak_pg_delete_fsm:delete(Group),
-    wait_for_reqid(ReqId, ?TIMEOUT).
-
-%% @doc Send a message to the group.
-send(Group, Message) ->
-    {ok, ReqId} = riak_pg_send_fsm:send(Group, Message),
     wait_for_reqid(ReqId, ?TIMEOUT).
 
 %% @doc Join pid to group.

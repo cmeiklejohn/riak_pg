@@ -108,7 +108,7 @@ init([ReqId, From, Group]) ->
 prepare(timeout, #state{group=Group}=State) ->
     DocIdx = riak_core_util:chash_key({<<"memberships">>, Group}),
     Preflist = riak_core_apl:get_primary_apl(DocIdx, ?N,
-                                             riak_pg_messaging),
+                                             riak_pg_memberships),
     Preflist2 = [{Index, Node} || {{Index, Node}, _Type} <- Preflist],
     {next_state, execute, State#state{preflist=Preflist2}, 0}.
 
@@ -122,7 +122,7 @@ execute(timeout, #state{preflist=Preflist,
 
 %% @doc Pull a unique list of memberships from replicas, and
 %%      relay the message to it.
-waiting({ok, _ReqId, IndexNode, Reply},
+waiting({ok, _ReqId, IndexNode, {ok, Reply}},
         #state{from=From,
                req_id=ReqId,
                num_responses=NumResponses0,
@@ -147,7 +147,7 @@ waiting({ok, _ReqId, IndexNode, Reply},
     end.
 
 %% @doc Wait for the remainder of responses from replicas.
-waiting_n({ok, _ReqId, IndexNode, Reply},
+waiting_n({ok, _ReqId, IndexNode, {ok, Reply}},
         #state{num_responses=NumResponses0,
                replies=Replies0}=State0) ->
     NumResponses = NumResponses0 + 1,
@@ -204,7 +204,8 @@ prune(Set) ->
 
 %% @doc Perform merge of replicas.
 merge(Replies) ->
-    lists:foldl(fun({_, Pids}, Acc) -> riak_dt_orswot:merge(Pids, Acc) end,
+    lists:foldl(fun({_IndexNode, Pids}, Acc) ->
+                riak_dt_orswot:merge(Pids, Acc) end,
                 riak_dt_orswot:new(), Replies).
 
 %% @doc Trigger repair if necessary.

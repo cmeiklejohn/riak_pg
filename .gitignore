@@ -10,3 +10,4 @@ rel/riak_pg
 .DS_Store
 doc
 .qc/
+.local_dialyzer_plt

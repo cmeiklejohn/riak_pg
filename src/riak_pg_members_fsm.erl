@@ -133,7 +133,7 @@ waiting({ok, _ReqId, IndexNode, Reply},
 
     case NumResponses =:= ?R of
         true ->
-            Pids = riak_dt_vvorset:value(merge(Replies)),
+            Pids = riak_dt_orswot:value(merge(Replies)),
             From ! {ReqId, ok, Pids},
 
             case NumResponses =:= ?N of
@@ -192,11 +192,11 @@ is_process_alive(Node, Pid) ->
 %% @doc Based on connected nodes, prune out processes that no longer
 %%      exist.
 prune(Set) ->
-    Pids0 = riak_dt_vvorset:value(Set),
+    Pids0 = riak_dt_orswot:value(Set),
     lists:foldl(fun(Pid, Pids) ->
                 case prune_pid(Pid) of
                     true ->
-                        riak_dt_vvorset:update({remove, Pid}, none, Pids);
+                        riak_dt_orswot:update({remove, Pid}, none, Pids);
                     false ->
                         Pids
                 end
@@ -204,13 +204,13 @@ prune(Set) ->
 
 %% @doc Perform merge of replicas.
 merge(Replies) ->
-    lists:foldl(fun({_, Pids}, Acc) -> riak_dt_vvorset:merge(Pids, Acc) end,
-                riak_dt_vvorset:new(), Replies).
+    lists:foldl(fun({_, Pids}, Acc) -> riak_dt_orswot:merge(Pids, Acc) end,
+                riak_dt_orswot:new(), Replies).
 
 %% @doc Trigger repair if necessary.
 repair([{IndexNode, Pids}|Replies],
        #state{group=Group, pids=MPids}=State) ->
-    case riak_dt_vvorset:equal(Pids, MPids) of
+    case riak_dt_orswot:equal(Pids, MPids) of
         false ->
             riak_pg_memberships_vnode:repair(IndexNode, Group, MPids);
         true ->

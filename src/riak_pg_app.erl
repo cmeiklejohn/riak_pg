@@ -51,9 +51,6 @@ start(_StartType, _StartArgs) ->
             ok = riak_core_node_watcher_events:add_guarded_handler(
                     riak_pg_node_event_handler, []),
 
-            EntryRoute = {["riak_pg"], riak_pg_wm_ping, []},
-            webmachine_router:add_route(EntryRoute),
-
             {ok, Pid};
         {error, Reason} ->
             {error, Reason}

@@ -33,7 +33,6 @@
          delete/1,
          join/2,
          leave/2,
-         ping/0,
          groups/0,
          members/1,
          local_members/1,
@@ -105,17 +104,6 @@ connected_members(Group) ->
         {error, Error} ->
             {error, Error}
     end.
-
-%% @doc Pings a random vnode to make sure communication is functional.
-ping() ->
-    DocIdx = riak_core_util:chash_key({<<"ping">>,
-                                       term_to_binary(now())}),
-    Preflist = riak_core_apl:get_primary_apl(DocIdx, 1, riak_pg),
-    [{IndexNode, _Type}] = Preflist,
-    riak_core_vnode_master:sync_spawn_command(IndexNode,
-                                              ping,
-                                              riak_pg_vnode_master).
-
 
 %%%===================================================================
 %%% Internal Functions

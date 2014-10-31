@@ -122,7 +122,7 @@ execute(timeout, #state{preflist=Preflist,
 
 %% @doc Pull a unique list of memberships from replicas, and
 %%      relay the message to it.
-waiting({ok, _ReqId, IndexNode, {ok, Reply}},
+waiting({ok, _ReqId, IndexNode, Reply},
         #state{from=From,
                req_id=ReqId,
                num_responses=NumResponses0,
@@ -147,7 +147,7 @@ waiting({ok, _ReqId, IndexNode, {ok, Reply}},
     end.
 
 %% @doc Wait for the remainder of responses from replicas.
-waiting_n({ok, _ReqId, IndexNode, {ok, Reply}},
+waiting_n({ok, _ReqId, IndexNode, Reply},
         #state{num_responses=NumResponses0,
                replies=Replies0}=State0) ->
     NumResponses = NumResponses0 + 1,

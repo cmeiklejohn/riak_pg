@@ -168,7 +168,7 @@ handle_command({leave, {ReqId, _}, Group, Pid},
                #state{groups=Groups0, partition=Partition}=State) ->
     %% Find existing list of Pids, and add object to it.
     Pids0 = pids(Groups0, Group, riak_dt_orswot:new()),
-    Pids = riak_dt_orswot:update({remove, Pid}, Partition, Pids0),
+    {ok, Pids} = riak_dt_orswot:update({remove, Pid}, Partition, Pids0),
 
     %% Store back into the dict.
     Groups = dict:store(Group, Pids, Groups0),

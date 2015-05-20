@@ -71,7 +71,8 @@ leave(Group, Pid) ->
 %% @todo
 -spec groups() -> ok.
 groups() ->
-    ok.
+  {ok, ReqId} = riak_pg_groups_fsm:groups(),
+  wait_for_reqid(ReqId, ?TIMEOUT).
 
 %% @doc Return a listing of members of a particular group.
 -spec members(term()) -> {ok, list(pid())} | {error, timeout}.

@@ -106,9 +106,8 @@ init([ReqId, From, Group]) ->
 
 %% @doc Prepare request by retrieving the preflist.
 prepare(timeout, #state{group=Group}=State) ->
-    DocIdx = riak_core_util:chash_key({<<"memberships">>, Group}),
-    Preflist = riak_core_apl:get_primary_apl(DocIdx, ?N,
-                                             riak_pg_memberships),
+    DocIdx = riak_core_util:chash_key({<<"pg">>, Group}),
+    Preflist = riak_core_apl:get_primary_apl(DocIdx, ?N, riak_pg),
     Preflist2 = [{Index, Node} || {{Index, Node}, _Type} <- Preflist],
     {next_state, execute, State#state{preflist=Preflist2}, 0}.
 
@@ -117,7 +116,7 @@ execute(timeout, #state{preflist=Preflist,
                         req_id=ReqId,
                         coordinator=Coordinator,
                         group=Group}=State) ->
-    riak_pg_memberships_vnode:members(Preflist, {ReqId, Coordinator}, Group),
+    riak_pg_vnode:members(Preflist, {ReqId, Coordinator}, Group),
     {next_state, waiting, State}.
 
 %% @doc Pull a unique list of memberships from replicas, and
@@ -213,7 +212,7 @@ repair([{IndexNode, Pids}|Replies],
        #state{group=Group, pids=MPids}=State) ->
     case riak_dt_orswot:equal(Pids, MPids) of
         false ->
-            riak_pg_memberships_vnode:repair(IndexNode, Group, MPids);
+            riak_pg_vnode:repair(IndexNode, Group, MPids);
         true ->
             ok
     end,

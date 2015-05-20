@@ -43,6 +43,17 @@ local_members(term()) -> {ok, list(pid()) | {error, timeout}.
 connected_members(term()) -> {ok, list(pid()) | {error, timeout}.
 ```
 
+You can list the groups that have been created.
+
+```erlang
+groups() -> {ok, list(term())} | {error, timeout}
+```
+
+## Issues
+
+The list of groups will never shrink as there is no good way to garbage collect
+the dict without race conditions. Should probably be changed to a CRDT map.
+
 ## Copyright
 
 Copyright (C) 2013 Christopher Meiklejohn.

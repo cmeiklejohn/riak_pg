@@ -37,13 +37,8 @@
 start(_StartType, _StartArgs) ->
     case riak_pg_sup:start_link() of
         {ok, Pid} ->
-            ok = riak_core:register(riak_pg,
-                                    [{vnode_module, riak_pg_vnode}]),
+            ok = riak_core:register(riak_pg, [{vnode_module, riak_pg_vnode}]),
             ok = riak_core_node_watcher:service_up(riak_pg, self()),
-
-            ok = riak_core:register(riak_pg_memberships,
-                                    [{vnode_module, riak_pg_memberships_vnode}]),
-            ok = riak_core_node_watcher:service_up(riak_pg_memberships, self()),
 
             ok = riak_core_ring_events:add_guarded_handler(
                     riak_pg_ring_event_handler, []),

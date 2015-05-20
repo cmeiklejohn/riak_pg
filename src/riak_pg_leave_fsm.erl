@@ -102,9 +102,8 @@ init([ReqId, From, Group, Pid]) ->
 
 %% @doc Prepare request by retrieving the preflist.
 prepare(timeout, #state{group=Group}=State) ->
-    DocIdx = riak_core_util:chash_key({<<"memberships">>, Group}),
-    Preflist = riak_core_apl:get_primary_apl(DocIdx, ?N,
-                                             riak_pg_memberships),
+    DocIdx = riak_core_util:chash_key({<<"pg">>, Group}),
+    Preflist = riak_core_apl:get_primary_apl(DocIdx, ?N, riak_pg),
     Preflist2 = [{Index, Node} || {{Index, Node}, _Type} <- Preflist],
     {next_state, execute, State#state{preflist=Preflist2}, 0}.
 
@@ -114,7 +113,7 @@ execute(timeout, #state{preflist=Preflist,
                         coordinator=Coordinator,
                         group=Group,
                         pid=Pid}=State) ->
-    riak_pg_memberships_vnode:leave(Preflist, {ReqId, Coordinator}, Group, Pid),
+    riak_pg_vnode:leave(Preflist, {ReqId, Coordinator}, Group, Pid),
     {next_state, waiting, State}.
 
 %% @doc Attempt to write to every single node responsible for this

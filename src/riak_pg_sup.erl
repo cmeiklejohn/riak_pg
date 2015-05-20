@@ -37,45 +37,52 @@
 %% ===================================================================
 
 start_link() ->
-    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+  supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 %% ===================================================================
 %% Supervisor callbacks
 %% ===================================================================
 
 init(_Args) ->
-    VMaster = {riak_pg_vnode_master,
-               {riak_core_vnode_master, start_link, [riak_pg_vnode]},
-                permanent, 5000, worker, [riak_core_vnode_master]},
+  VMaster = {riak_pg_vnode_master,
+             {riak_core_vnode_master, start_link, [riak_pg_vnode]},
+             permanent, 5000, worker, [riak_core_vnode_master]},
 
-    Memberships = {riak_pg_memberships_vnode_master,
-                   {riak_core_vnode_master, start_link, [riak_pg_memberships_vnode]},
-                    permanent, 5000, worker, [riak_core_vnode_master]},
+  CreateFSM = {riak_pg_create_fsm_sup,
+               {riak_pg_create_fsm_sup, start_link, []},
+               permanent, infinity, supervisor, [riak_pg_create_fsm_sup]},
 
-    CreateFSM = {riak_pg_create_fsm_sup,
-                 {riak_pg_create_fsm_sup, start_link, []},
-                  permanent, infinity, supervisor, [riak_pg_create_fsm_sup]},
+  DeleteFSM = {riak_pg_delete_fsm_sup,
+               {riak_pg_delete_fsm_sup, start_link, []},
+               permanent, infinity, supervisor, [riak_pg_delete_fsm_sup]},
 
-    DeleteFSM = {riak_pg_delete_fsm_sup,
-                 {riak_pg_delete_fsm_sup, start_link, []},
-                  permanent, infinity, supervisor, [riak_pg_delete_fsm_sup]},
+  JoinFSM = {riak_pg_join_fsm_sup,
+             {riak_pg_join_fsm_sup, start_link, []},
+             permanent, infinity, supervisor, [riak_pg_join_fsm_sup]},
 
-    JoinFSM = {riak_pg_join_fsm_sup,
-               {riak_pg_join_fsm_sup, start_link, []},
-                permanent, infinity, supervisor, [riak_pg_join_fsm_sup]},
+  LeaveFSM = {riak_pg_leave_fsm_sup,
+              {riak_pg_leave_fsm_sup, start_link, []},
+              permanent, infinity, supervisor, [riak_pg_leave_fsm_sup]},
 
-    LeaveFSM = {riak_pg_leave_fsm_sup,
-                {riak_pg_leave_fsm_sup, start_link, []},
-                 permanent, infinity, supervisor, [riak_pg_leave_fsm_sup]},
+  MembersFSM = {riak_pg_members_fsm_sup,
+                {riak_pg_members_fsm_sup, start_link, []},
+                permanent, infinity, supervisor, [riak_pg_members_fsm_sup]},
 
-    MembersFSM = {riak_pg_members_fsm_sup,
-                  {riak_pg_members_fsm_sup, start_link, []},
-                   permanent, infinity, supervisor, [riak_pg_members_fsm_sup]},
+  GroupsFsm = {riak_pg_groups_fsm_sup,
+               {
+                 riak_pg_groups_fsm_sup, start_link, []
+               },
+               permanent,
+               infinity,
+               supervisor,
+               [riak_pg_groups_fsm_sup]
+              },
 
-    {ok, {{one_for_one, 5, 10}, [VMaster,
-                                 Memberships,
-                                 CreateFSM,
-                                 DeleteFSM,
-                                 JoinFSM,
-                                 LeaveFSM,
-                                 MembersFSM]}}.
+
+  {ok, {{one_for_one, 5, 10}, [VMaster,
+                               CreateFSM,
+                               DeleteFSM,
+                               JoinFSM,
+                               LeaveFSM,
+                               GroupsFsm,
+                               MembersFSM]}}.

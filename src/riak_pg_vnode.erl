@@ -234,7 +234,17 @@ delete(State) ->
     {ok, State}.
 
 handle_coverage(groups, _KeySpaces, _Sender, State=#state{groups=Groups}) ->
-  {reply, dict:fetch_keys(Groups), State};
+  NonEmpty = dict:fold(fun(K,V,Acc) ->
+                           case length(riak_dt_orswot:value(V)) of
+                             0 ->
+                               Acc;
+                             _ ->
+                               [K|Acc]
+                           end
+                       end,
+                       [],
+                       Groups),
+  {reply, NonEmpty, State};
 handle_coverage(_Req, _KeySpaces, _Sender, State) ->
   {stop, not_implemented, State}.
 

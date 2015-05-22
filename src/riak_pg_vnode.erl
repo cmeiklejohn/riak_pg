@@ -129,7 +129,7 @@ handle_command({members, {ReqId, _}, Group},
                _Sender,
                #state{groups=Groups, partition=Partition, node=Node}=State) ->
   %% Find existing list of Pids.
-  Pids = hd([P || {{K, riak_dt_orswot}, P} <- riak_dt_map:value(Groups), K =:= Group]),
+  Pids = proplists:get_value({Group, riak_dt_orswot}, riak_dt_map:value(Groups), []),
   %% Return updated groups.
   {reply, {ok, ReqId, {Partition, Node}, Pids}, State};
 
@@ -149,27 +149,27 @@ handle_command({delete, {ReqId, _}, Group},
 handle_command({join, {ReqId, _}, Group, Pid},
                _Sender,
                #state{groups=Groups0, partition=Partition}=State) ->
-  %% Find existing list of Pids, and add object to it.
   {ok, Groups} = riak_dt_map:update(
                    {update, [{update, {Group, riak_dt_orswot}, {add, Pid}}]},
                    Partition,
                    Groups0
                   ),
-  %% Return updated groups.
   {reply, {ok, ReqId}, State#state{groups=Groups}};
 
 %% @doc Respond to a leave request.
 handle_command({leave, {ReqId, _}, Group, Pid},
                _Sender,
                #state{groups=Groups0, partition=Partition}=State) ->
-  %% Find existing list of Pids, and add object to it.
-  {ok, Groups} = riak_dt_map:update(
-                   {update, [{update, {Group, riak_dt_orswot}, {remove, Pid}}]},
-                   Partition,
-                   Groups0
-                  ),
-  %% Return updated groups.
-  {reply, {ok, ReqId}, State#state{groups=Groups}};
+  case riak_dt_map:update(
+         {update, [{update, {Group, riak_dt_orswot}, {remove, Pid}}]},
+         Partition,
+         Groups0
+        ) of
+    {ok, Groups} ->
+      {reply, {ok, ReqId}, State#state{groups=Groups}};
+    _ ->
+      {reply, {ok, ReqId}, State}
+  end;
 
 %% @doc Default handler.
 handle_command(Message, _Sender, State) ->
@@ -220,6 +220,7 @@ handle_coverage(groups, _KeySpaces, _Sender, State=#state{groups=Groups}) ->
   NonEmpty = lists:foldl(fun({{K,riak_dt_orswot},V},Acc) ->
                            case length(V) of
                              0 ->
+                               %% @TODO prune empty group
                                Acc;
                              _ ->
                                [K|Acc]

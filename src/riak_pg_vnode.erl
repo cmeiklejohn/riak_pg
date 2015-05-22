@@ -111,7 +111,7 @@ groups(Preflist, ReqId) ->
 handle_command({repair, Group, Pids},
                _Sender,
                #state{groups=Groups0, partition=Partition}=State) ->
-  %% Store back into the dict.
+  %% @TODO Handle case where group doesn't exist
   {ok, Groups1} = riak_dt_map:update(
                    {update,[{remove,{Group, riak_dt_orswot}}]},
                    Partition,
@@ -128,15 +128,14 @@ handle_command({repair, Group, Pids},
 handle_command({members, {ReqId, _}, Group},
                _Sender,
                #state{groups=Groups, partition=Partition, node=Node}=State) ->
-  %% Find existing list of Pids.
   Pids = proplists:get_value({Group, riak_dt_orswot}, riak_dt_map:value(Groups), []),
-  %% Return updated groups.
   {reply, {ok, ReqId, {Partition, Node}, Pids}, State};
 
 %% @doc Respond to a delete request.
 handle_command({delete, {ReqId, _}, Group},
                _Sender,
                #state{groups=Groups0, partition=Partition}=State) ->
+  %% @TODO Handle case where group doesn't exist
   {ok, Groups} = riak_dt_map:update(
                    {update, [{remove, {Group, riak_dt_orswot}}]},
                    Partition,

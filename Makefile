@@ -6,6 +6,9 @@ compile: deps
 	./rebar compile
 
 deps:
+	./rebar get-deps
+
+locked-deps:
 	./rebar -C rebar.config.lock get-deps
 
 clean:

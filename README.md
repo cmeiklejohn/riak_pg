@@ -2,8 +2,7 @@
 
 ## Overview
 
-Distributed process groups with riak\_core.  Work in progress,
-not for production use.
+Distributed process groups with riak\_core.
 
 ## Usage
 

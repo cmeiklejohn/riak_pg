@@ -111,18 +111,23 @@ groups(Preflist, ReqId) ->
 handle_command({repair, Group, Pids},
                _Sender,
                #state{groups=Groups0, partition=Partition}=State) ->
-  %% @TODO Handle case where group doesn't exist
-  {ok, Groups1} = riak_dt_map:update(
-                   {update,[{remove,{Group, riak_dt_orswot}}]},
-                   Partition,
-                   Groups0
-                  ),
-  {ok, Groups} = riak_dt_map:update(
+  OldGroups = case riak_dt_map:update(
+                    {update,[{remove,{Group, riak_dt_orswot}}]},
+                    Partition,
+                    Groups0
+                   ) of
+               {ok, Groups1} ->
+                 Groups1;
+               _ ->
+                 Groups0
+             end,
+  {ok, NewGroups} = riak_dt_map:update(
                    {update,[{update,{Group, riak_dt_orswot},{add_all, Pids}}]},
                    Partition,
-                   Groups1
+                   OldGroups
                   ),
-{noreply, State#state{groups=Groups}};
+  NewPruned = prune_empty_groups(NewGroups, Partition),
+  {noreply, State#state{groups=NewPruned}};
 
 %% @doc Respond to a members request.
 handle_command({members, {ReqId, _}, Group},
@@ -135,13 +140,16 @@ handle_command({members, {ReqId, _}, Group},
 handle_command({delete, {ReqId, _}, Group},
                _Sender,
                #state{groups=Groups0, partition=Partition}=State) ->
-  %% @TODO Handle case where group doesn't exist
-  {ok, Groups} = riak_dt_map:update(
-                   {update, [{remove, {Group, riak_dt_orswot}}]},
-                   Partition,
-                   Groups0
-                  ),
-  %% Return updated groups.
+  Groups = case riak_dt_map:update(
+                  {update, [{remove, {Group, riak_dt_orswot}}]},
+                  Partition,
+                  Groups0
+                 ) of
+             {ok, Groups1} ->
+               Groups1;
+             _ ->
+               Groups0
+           end,
   {reply, {ok, ReqId}, State#state{groups=Groups}};
 
 %% @doc Respond to a join request.
@@ -159,16 +167,19 @@ handle_command({join, {ReqId, _}, Group, Pid},
 handle_command({leave, {ReqId, _}, Group, Pid},
                _Sender,
                #state{groups=Groups0, partition=Partition}=State) ->
-  case riak_dt_map:update(
-         {update, [{update, {Group, riak_dt_orswot}, {remove, Pid}}]},
-         Partition,
-         Groups0
-        ) of
-    {ok, Groups} ->
-      {reply, {ok, ReqId}, State#state{groups=Groups}};
-    _ ->
-      {reply, {ok, ReqId}, State}
-  end;
+  NewGroups = case riak_dt_map:update(
+                     {update, [{update, {Group, riak_dt_orswot}, {remove, Pid}}]},
+                     Partition,
+                     Groups0
+                    ) of
+                {ok, Groups} ->
+                  Groups;
+                _ ->
+                  Groups0
+              end,
+  NewPruned = prune_empty_groups(NewGroups, Partition),
+  {reply, {ok, ReqId}, State#state{groups=NewPruned}};
+
 
 %% @doc Default handler.
 handle_command(Message, _Sender, State) ->
@@ -189,8 +200,7 @@ handoff_cancelled(State) ->
 handoff_finished(_TargetNode, State) ->
   {ok, State}.
 
-%% @doc Handle receiving data from handoff.  Decode data and
-%%      perform join/leave.
+%% @doc Handle receiving data from handoff.
 handle_handoff_data(Data,
                     #state{groups=Groups0,partition=Partition}=State) ->
   {{Group,riak_dt_orswot}, Pids} = binary_to_term(Data),
@@ -215,19 +225,12 @@ is_empty(#state{groups=Groups}=State) ->
 delete(State) ->
   {ok, State}.
 
-handle_coverage(groups, _KeySpaces, _Sender, State=#state{groups=Groups}) ->
-  NonEmpty = lists:foldl(fun({{K,riak_dt_orswot},V},Acc) ->
-                           case length(V) of
-                             0 ->
-                               %% @TODO prune empty group
-                               Acc;
-                             _ ->
-                               [K|Acc]
-                           end
-                       end,
-                       [],
-                       riak_dt_map:value(Groups)),
-  {reply, NonEmpty, State};
+handle_coverage(groups, _KeySpaces, _Sender, State=#state{groups=Groups,partition=Partition}) ->
+  NewGroups = prune_empty_groups(Groups,Partition),
+  GroupList = [Group || {{Group, riak_dt_orswot}, _Pids}
+                          <- riak_dt_map:value(NewGroups)],
+  {reply, GroupList, State#state{groups=NewGroups}};
+
 handle_coverage(_Req, _KeySpaces, _Sender, State) ->
   {stop, not_implemented, State}.
 
@@ -240,3 +243,19 @@ terminate(_Reason, _State) ->
 %%%===================================================================
 %%% Internal Functions
 %%%===================================================================
+
+prune_empty_groups(CRDT, Partition) ->
+  prune_empty_groups(CRDT, Partition, riak_dt_map:value(CRDT)).
+
+prune_empty_groups(CRDT, Partition, [{{_Group, riak_dt_orswot},Pids}|List])
+  when length(Pids) =/= 0->
+  prune_empty_groups(CRDT, Partition, List);
+prune_empty_groups(CRDT0, Partition, [{{Group, riak_dt_orswot},_Pids}|List]) ->
+  {ok, CRDT} = riak_dt_map:update(
+           {update, [{remove, {Group, riak_dt_orswot}}]},
+           Partition,
+           CRDT0
+          ),
+  prune_empty_groups(CRDT, Partition, List);
+prune_empty_groups(CRDT, _Partition, []) ->
+  CRDT.

@@ -111,6 +111,9 @@ groups(Preflist, ReqId) ->
 handle_command({repair, Group, Pids},
                _Sender,
                #state{groups=Groups0, partition=Partition}=State) ->
+
+  OldPids = proplists:get_value({Group, riak_dt_orswot}, riak_dt_map:value(Groups0), []),
+  CurrentPids = riak_pg_util:prune(Pids ++ OldPids),
   OldGroups = case riak_dt_map:update(
                     {update,[{remove,{Group, riak_dt_orswot}}]},
                     Partition,
@@ -122,7 +125,7 @@ handle_command({repair, Group, Pids},
                  Groups0
              end,
   {ok, NewGroups} = riak_dt_map:update(
-                   {update,[{update,{Group, riak_dt_orswot},{add_all, Pids}}]},
+                   {update,[{update,{Group, riak_dt_orswot},{add_all, CurrentPids}}]},
                    Partition,
                    OldGroups
                   ),

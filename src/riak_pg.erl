@@ -29,8 +29,7 @@
 
 -define(TIMEOUT, 5000).
 
--export([create/1,
-         delete/1,
+-export([delete/1,
          join/2,
          leave/2,
          groups/0,
@@ -42,12 +41,6 @@
          wait_for_reqid/2]).
 
 %% Public API
-
-%% @doc Create a group.
--spec create(term()) -> ok | {error, timeout}.
-create(Group) ->
-    {ok, ReqId} = riak_pg_create_fsm:create(Group),
-    wait_for_reqid(ReqId, ?TIMEOUT).
 
 %% @doc Delete a group.
 -spec delete(term()) -> ok | {error, timeout}.

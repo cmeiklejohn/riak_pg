@@ -4,9 +4,8 @@
 
 %% @doc If the node is connected, and the process is not alive, prune
 %%      it.
-prune_pid(Pid) when is_pid(Pid) ->
-  lists:member(node(Pid), nodes())
-    andalso (is_process_alive(node(Pid), Pid) =:= false).
+pid_alive(Pid) when is_pid(Pid) ->
+  lists:member(node(Pid), [node(),nodes()]) andalso is_process_alive(node(Pid), Pid).
 
 %% @doc Remote call to determine if process is alive or not; assume if
 %%      the node fails communication it is, since we have no proof it
@@ -24,7 +23,7 @@ is_process_alive(Node, Pid) ->
 prune(List) ->
   lists:foldl(
     fun(Pid, Acc) ->
-        case prune_pid(Pid) of
+        case pid_alive(Pid) of
           true ->
             [Pid|Acc];
           false ->

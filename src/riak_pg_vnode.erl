@@ -189,7 +189,7 @@ handle_command(Message, _Sender, State) ->
 
 %% @doc Fold over the dict for handoff.
 handle_handoff_command(?FOLD_REQ{foldfun=Fun, acc0=Acc0}, _Sender, State) ->
-  Acc = lists:foldl(Fun, Acc0, riak_dt_map:value(State#state.groups)),
+  Acc = lists:foldl(Fun, Acc0, [{foo,State#state.groups}]),
   {reply, Acc, State}.
 
 handoff_starting(_TargetNode, State) ->
@@ -202,18 +202,13 @@ handoff_finished(_TargetNode, State) ->
   {ok, State}.
 
 %% @doc Handle receiving data from handoff.
-handle_handoff_data(Data,
-                    #state{groups=Groups0,partition=Partition}=State) ->
-  {{Group,riak_dt_orswot}, Pids} = binary_to_term(Data),
-  {ok, Groups} = riak_dt_map:update(
-                   {update, [{update,{Group, riak_dt_orswot}, {add_all, Pids}}]},
-                   Partition,
-                   Groups0
-                  ),
+handle_handoff_data(Data, #state{groups=Groups0}=State) ->
+  CRDT = riak_dt:from_binary(Data),
+  Groups = riak_dt_map:merge(Groups0, CRDT),
   {reply, ok, State#state{groups=Groups}}.
 
-encode_handoff_item(Group, Pids) ->
-  term_to_binary({Group, Pids}).
+encode_handoff_item(_, Data) ->
+  riak_dt:to_binary(Data).
 
 is_empty(#state{groups=Groups}=State) ->
   case length(riak_dt_map:value(Groups)) of

@@ -1,6 +1,6 @@
 %% -------------------------------------------------------------------
 %%
-%% Copyright (c) 2013 Christopher Meiklejohn.  All Rights Reserved.
+%% Copyright (c) 2013 Christopher Meiklejohn, 2015 Mark Steele  All Rights Reserved.
 %%
 %% This file is provided to you under the Apache License,
 %% Version 2.0 (the "License"); you may not use this file
@@ -18,11 +18,14 @@
 %%
 %% -------------------------------------------------------------------
 %% @author Christopher Meiklejohn <christopher.meiklejohn@gmail.com>
-%% @copyright 2013 Christopher Meiklejohn.
-%% @doc Memberships vnode.
+%% @author Mark Steele <mark@control-alt-del.org>
+%% @copyright 2013 Christopher Meiklejohn
+%% @copyright 2015 Mark Steele
+%% @doc pg vnode.
 
 -module(riak_pg_vnode).
 -author('Christopher Meiklejohn <christopher.meiklejohn@gmail.com>').
+-author('Mark Steele <mark@control-alt-del.org>').
 
 -behaviour(riak_core_vnode).
 
@@ -49,9 +52,10 @@
          join/4,
          leave/4,
          groups/2,
-         members/3]).
+         prune/1,
+         repair/2,
+         members/2]).
 
--export([repair/3]).
 
 -record(state, {node, partition, groups}).
 
@@ -87,16 +91,23 @@ leave(Preflist, Identity, Group, Pid) ->
                                  ?MASTER).
 
 %% @doc Group members.
-members(Preflist, Identity, Group) ->
+members(Preflist, Identity) ->
   riak_core_vnode_master:command(Preflist,
-                                 {members, Identity, Group},
+                                 {members, Identity},
                                  {fsm, undefined, self()},
                                  ?MASTER).
 
 %% @doc Perform repair.
-repair(IndexNode, Group, Pids) ->
+repair(IndexNode, Map) ->
   riak_core_vnode_master:command(IndexNode,
-                                 {repair, Group, Pids},
+                                 {repair, Map},
+                                 ignore,
+                                 ?MASTER).
+
+%% @doc Trigger pruning
+prune(IndexNode) ->
+  riak_core_vnode_master:command(IndexNode,
+                                 prune,
                                  ignore,
                                  ?MASTER).
 
@@ -108,33 +119,24 @@ groups(Preflist, ReqId) ->
                                   ?MASTER).
 
 %% @doc Perform join as part of repair.
-handle_command({repair, Group, Pids},
+handle_command({repair, Map},
                _Sender,
                #state{groups=Groups0, partition=Partition}=State) ->
-  OldGroups = case riak_dt_map:update(
-                    {update,[{remove,{Group, riak_dt_orswot}}]},
-                    Partition,
-                    Groups0
-                   ) of
-               {ok, Groups1} ->
-                 Groups1;
-               _ ->
-                 Groups0
-             end,
-  {ok, NewGroups} = riak_dt_map:update(
-                   {update,[{update,{Group, riak_dt_orswot},{add_all, Pids}}]},
-                   Partition,
-                   OldGroups
-                  ),
-  NewPruned = prune_empty_groups(NewGroups, Partition),
+  NewGroups = riak_dt_map:merge(Groups0, Map),
+  NewPruned = prune_groups(NewGroups, Partition),
   {noreply, State#state{groups=NewPruned}};
 
+handle_command(prune,
+               _Sender,
+               #state{groups=Groups0, partition=Partition}=State) ->
+  Pruned = prune_groups(Groups0, Partition),
+  {noreply, State#state{groups=Pruned}};
+
 %% @doc Respond to a members request.
-handle_command({members, {ReqId, _}, Group},
+handle_command({members, {ReqId, _}},
                _Sender,
                #state{groups=Groups, partition=Partition, node=Node}=State) ->
-  Pids = proplists:get_value({Group, riak_dt_orswot}, riak_dt_map:value(Groups), []),
-  {reply, {ok, ReqId, {Partition, Node}, Pids}, State};
+  {reply, {ok, ReqId, {Partition, Node}, Groups}, State};
 
 %% @doc Respond to a delete request.
 handle_command({delete, {ReqId, _}, Group},
@@ -177,8 +179,7 @@ handle_command({leave, {ReqId, _}, Group, Pid},
                 _ ->
                   Groups0
               end,
-  NewPruned = prune_empty_groups(NewGroups, Partition),
-  {reply, {ok, ReqId}, State#state{groups=NewPruned}};
+  {reply, {ok, ReqId}, State#state{groups=NewGroups}};
 
 
 %% @doc Default handler.
@@ -188,7 +189,7 @@ handle_command(Message, _Sender, State) ->
 
 %% @doc Fold over the dict for handoff.
 handle_handoff_command(?FOLD_REQ{foldfun=Fun, acc0=Acc0}, _Sender, State) ->
-  Acc = lists:foldl(Fun, Acc0, riak_dt_map:value(State#state.groups)),
+  Acc = lists:foldl(Fun, Acc0, [{foo,State#state.groups}]),
   {reply, Acc, State}.
 
 handoff_starting(_TargetNode, State) ->
@@ -201,18 +202,13 @@ handoff_finished(_TargetNode, State) ->
   {ok, State}.
 
 %% @doc Handle receiving data from handoff.
-handle_handoff_data(Data,
-                    #state{groups=Groups0,partition=Partition}=State) ->
-  {{Group,riak_dt_orswot}, Pids} = binary_to_term(Data),
-  {ok, Groups} = riak_dt_map:update(
-                   {update, [{update,{Group, riak_dt_orswot}, {add_all, Pids}}]},
-                   Partition,
-                   Groups0
-                  ),
+handle_handoff_data(Data, #state{groups=Groups0}=State) ->
+  CRDT = riak_dt:from_binary(Data),
+  Groups = riak_dt_map:merge(Groups0, CRDT),
   {reply, ok, State#state{groups=Groups}}.
 
-encode_handoff_item(Group, Pids) ->
-  term_to_binary({Group, Pids}).
+encode_handoff_item(_, Data) ->
+  riak_dt:to_binary(Data).
 
 is_empty(#state{groups=Groups}=State) ->
   case length(riak_dt_map:value(Groups)) of
@@ -226,7 +222,7 @@ delete(State) ->
   {ok, State}.
 
 handle_coverage(groups, _KeySpaces, _Sender, State=#state{groups=Groups,partition=Partition}) ->
-  NewGroups = prune_empty_groups(Groups,Partition),
+  NewGroups = prune_groups(Groups,Partition),
   GroupList = [Group || {{Group, riak_dt_orswot}, _Pids}
                           <- riak_dt_map:value(NewGroups)],
   {reply, GroupList, State#state{groups=NewGroups}};
@@ -244,18 +240,47 @@ terminate(_Reason, _State) ->
 %%% Internal Functions
 %%%===================================================================
 
-prune_empty_groups(CRDT, Partition) ->
-  prune_empty_groups(CRDT, Partition, riak_dt_map:value(CRDT)).
+prune_groups(CRDT, Partition) ->
+  prune_groups(CRDT, Partition, riak_dt_map:value(CRDT)).
 
-prune_empty_groups(CRDT, Partition, [{{_Group, riak_dt_orswot},Pids}|List])
+prune_groups(CRDT0, Partition, [{{Group, riak_dt_orswot},Pids}|List])
   when length(Pids) =/= 0->
-  prune_empty_groups(CRDT, Partition, List);
-prune_empty_groups(CRDT0, Partition, [{{Group, riak_dt_orswot},_Pids}|List]) ->
+  Pruned = riak_pg_util:prune(Pids),
+  case length(Pruned) =:= length(Pids) of
+    true ->
+      prune_groups(CRDT0, Partition, List);
+    false ->
+      case length(Pruned) =/= 0 of
+        true ->
+          Remove = lists:filter(
+                     fun(X) ->
+                         not lists:member(X, Pruned)
+                     end,
+                     Pids),
+          {ok, CRDT} = riak_dt_map:update(
+                         {update, [{update,
+                                    {Group, riak_dt_orswot},
+                                    {remove,Remove}
+                                   }]},
+                         Partition,
+                         CRDT0
+                        );
+        false ->
+          {ok, CRDT} = riak_dt_map:update(
+                         {update, [{remove, {Group, riak_dt_orswot}}]},
+                         Partition,
+                         CRDT0
+                        )
+      end,
+      prune_groups(CRDT, Partition, List)
+  end;
+
+prune_groups(CRDT0, Partition, [{{Group, riak_dt_orswot},_Pids}|List]) ->
   {ok, CRDT} = riak_dt_map:update(
            {update, [{remove, {Group, riak_dt_orswot}}]},
            Partition,
            CRDT0
           ),
-  prune_empty_groups(CRDT, Partition, List);
-prune_empty_groups(CRDT, _Partition, []) ->
+  prune_groups(CRDT, Partition, List);
+prune_groups(CRDT, _Partition, []) ->
   CRDT.

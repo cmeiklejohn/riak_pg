@@ -1,6 +1,6 @@
 %% -------------------------------------------------------------------
 %%
-%% Copyright (c) 2013 Christopher Meiklejohn.  All Rights Reserved.
+%% Copyright (c) 2013 Christopher Meiklejohn, 2015 Mark Steele  All Rights Reserved.
 %%
 %% This file is provided to you under the Apache License,
 %% Version 2.0 (the "License"); you may not use this file
@@ -18,11 +18,14 @@
 %%
 %% -------------------------------------------------------------------
 %% @author Christopher Meiklejohn <christopher.meiklejohn@gmail.com>
+%% @author Mark Steele <mark@control-alt-del.org>
 %% @copyright 2013 Christopher Meiklejohn.
+%% @copryright 2015 Mark Steele.
 %% @doc Members FSM.
 
 -module(riak_pg_members_fsm).
 -author('Christopher Meiklejohn <christopher.meiklejohn@gmail.com>').
+-author('Mark Steele <mark@control-alt-del.org>').
 
 -behaviour(gen_fsm).
 
@@ -52,9 +55,10 @@
                 coordinator,
                 from,
                 group,
+                groups,
                 num_responses,
                 replies,
-                pids}).
+                prune}).
 
 %%%===================================================================
 %%% API
@@ -100,7 +104,6 @@ init([ReqId, From, Group]) ->
                  from=From,
                  group=Group,
                  num_responses=0,
-                 pids=[],
                  replies=[]},
   {ok, prepare, State, 0}.
 
@@ -114,9 +117,8 @@ prepare(timeout, #state{group=Group}=State) ->
 %% @doc Execute the request.
 execute(timeout, #state{preflist=Preflist,
                         req_id=ReqId,
-                        coordinator=Coordinator,
-                        group=Group}=State) ->
-  riak_pg_vnode:members(Preflist, {ReqId, Coordinator}, Group),
+                        coordinator=Coordinator}=State) ->
+  riak_pg_vnode:members(Preflist, {ReqId, Coordinator}),
   {next_state, waiting, State}.
 
 %% @doc Pull a unique list of memberships from replicas, and
@@ -124,6 +126,7 @@ execute(timeout, #state{preflist=Preflist,
 waiting({ok, _ReqId, IndexNode, Reply},
         #state{from=From,
                req_id=ReqId,
+               group = Group,
                num_responses=NumResponses0,
                replies=Replies0}=State0) ->
   NumResponses = NumResponses0 + 1,
@@ -132,15 +135,9 @@ waiting({ok, _ReqId, IndexNode, Reply},
 
   case NumResponses =:= ?R of
     true ->
-      Pids = merge(Replies),
+      {Prune, Pids} = merge_pids(Replies, Group),
       From ! {ReqId, ok, Pids},
-
-      case NumResponses =:= ?N of
-        true ->
-          {next_state, finalize, State, 0};
-        false ->
-          {next_state, waiting_n, State}
-      end;
+      {next_state, waiting_n, State#state{prune = Prune}};
     false ->
       {next_state, waiting, State}
   end.
@@ -163,65 +160,46 @@ waiting_n({ok, _ReqId, IndexNode, Reply},
 %% @doc Perform read repair.
 finalize(timeout, #state{replies=Replies}=State) ->
   Merged = merge(Replies),
-  Pruned = prune(Merged),
-  ok = repair(Replies, State#state{pids=Merged -- Pruned}),
+  ok = repair(Replies, State#state{groups = Merged}),
+  case State#state.prune of
+    true ->
+      [riak_pg_vnode:prune(IndexNode) || {IndexNode, _Map} <- Replies];
+    false ->
+      ok
+  end,
   {stop, normal, State}.
 
 %%%===================================================================
 %%% Internal Functions
 %%%===================================================================
 
-%% @doc If the node is connected, and the process is not alive, prune
-%%      it.
-prune_pid(Pid) when is_pid(Pid) ->
-  lists:member(node(Pid), nodes())
-    andalso (is_process_alive(node(Pid), Pid) =:= false).
+%% @doc perform merge of replica CRDT maps
+merge([{_,H}|T]) ->
+  merge(T,H).
+merge([], Merged) ->
+  Merged;
+merge([{_,H}|T], Merged) ->
+  merge(T, riak_dt_map:merge(H, Merged)).
 
-%% @doc Remote call to determine if process is alive or not; assume if
-%%      the node fails communication it is, since we have no proof it
-%%      is not.
-is_process_alive(Node, Pid) ->
-  case rpc:call(Node, erlang, is_process_alive, [Pid]) of
-    {badrpc, _} ->
-      true;
-    Value ->
-      Value
-  end.
-
-%% @doc Based on connected nodes, prune out processes that no longer
-%%      exist.
-prune(List) ->
-  lists:foldl(
-    fun(Pid, Acc) ->
-        case prune_pid(Pid) of
-          true ->
-            [Pid|Acc];
-          false ->
-            Acc
-        end
-    end,
-    [],
-    List).
-
-%% @doc Perform merge of replicas.
-merge(Replies) ->
-  lists:usort(
-    lists:foldl(
-      fun({_IndexNode, Pids}, Acc) ->
-          Pids ++ Acc
-      end,
-      [],
-      Replies)
-   ).
+%% @doc Perform merge of replica pids.
+merge_pids(Replies, Group) ->
+  Pids = lists:sort(
+           proplists:get_value(
+             {Group, riak_dt_orswot},
+             riak_dt_map:value(merge(Replies)),
+             []
+            )
+          ),
+  Pruned = lists:sort(riak_pg_util:prune(Pids)),
+  {Pids == Pruned, Pruned}.
 
 %% @doc Trigger repair if necessary.
-repair([{IndexNode, Pids}|Replies],
-       #state{group=Group, pids=MPids}=State) ->
-  case Pids == MPids of
-    false ->
-      riak_pg_vnode:repair(IndexNode, Group, MPids);
+repair([{IndexNode, Map}|Replies], State) ->
+  case riak_dt_map:equal(Map, State#state.groups) of
     true ->
-      ok
+      ok;
+    false ->
+      riak_pg_vnode:repair(IndexNode, State#state.groups)
   end,
   repair(Replies, State);
 

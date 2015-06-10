@@ -11,3 +11,4 @@ rel/riak_pg
 doc
 .qc/
 .local_dialyzer_plt
+*.dump

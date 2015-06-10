@@ -41,4 +41,4 @@ groups() -> {ok, list(term())} | {error, timeout}
 
 ## Copyright
 
-Copyright (C) 2013 Christopher Meiklejohn.
+Copyright (C) 2013 Christopher Meiklejohn
